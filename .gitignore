@@ -1,0 +1,9 @@
+# Upstream dev clones
+opencode-dev/
+oh-my-openagent-dev/
+
+# Archives
+*.zip
+
+# Claude Code local
+.claude/

@@ -1,0 +1,6 @@
+{
+  "vllm_url": "http://10.88.22.29:8000",
+  "vllm_model": "Qwen3.5-35B-A3B",
+  "opencode_config_dir": "~/.config/opencode",
+  "expected_plugin": "oh-my-openagent"
+}
