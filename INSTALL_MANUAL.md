@@ -83,28 +83,38 @@ npm install oh-my-openagent@3.15.3
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "localvllm": {
-      "name": "localvllm",
-      "api": "openai",
-      "url": "http://<vllm-host>:8000/v1"
-    }
-  },
-  "model": {
-    "small": "localvllm/Qwen/Qwen3.5-32B",
-    "large": "localvllm/Qwen/Qwen3.5-32B"
-  },
   "plugin": [
     "file://C:/Users/<username>/.config/opencode/node_modules/oh-my-openagent"
   ],
-  "mcp": {}
+  "provider": {
+    "localvllm": {
+      "name": "Local vLLM",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://<vllm-host>:8000/v1",
+        "apiKey": "offspace1"
+      },
+      "models": {
+        "<model-name>": {
+          "name": "<model-name>",
+          "limit": {
+            "context": 131072,
+            "tool_call": true,
+            "output": 4096
+          }
+        }
+      }
+    }
+  },
+  "model": "localvllm/<model-name>"
 }
 ```
 
 **반드시 수정해야 하는 값:**
-- `<vllm-host>` → vLLM 서버의 IP 또는 호스트명
-- `<username>` → Windows 사용자명
-- 모델명 → vLLM 서버에 실제로 서빙 중인 모델명과 일치시킨다
+- `<username>` → Windows 사용자명 (예: `dongho.yoon`)
+- `<vllm-host>` → vLLM 서버의 IP (예: `10.88.22.29`)
+- `<model-name>` → vLLM에서 서빙 중인 모델명 (예: `Qwen3.5-35B-A3B`)
+- `apiKey` → vLLM 서버에 설정된 API 키 (없으면 아무 값이나 넣어도 됨)
 
 > vLLM 서버에서 사용 가능한 모델 확인:
 > ```bash
@@ -117,83 +127,39 @@ npm install oh-my-openagent@3.15.3
 
 파일 경로: `~/.config/opencode/oh-my-openagent.jsonc`
 
+아래에서 `localvllm/<model-name>`을 opencode.json의 model과 동일하게 맞춘다.
+
 ```jsonc
 {
-  // ===== 에이전트 설정 =====
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/assets/oh-my-opencode.schema.json",
   "agents": {
-    "sisyphus": {
-      "enabled": true,
-      "description": "Self-referential loop agent that works until task completion"
-    },
-    "hephaestus": {
-      "enabled": true,
-      "description": "Code executor agent"
-    },
-    "prometheus": {
-      "enabled": true,
-      "description": "Strategic planner agent"
-    },
-    "athena": {
-      "enabled": true,
-      "description": "Code reviewer agent"
-    },
-    "hermes": {
-      "enabled": true,
-      "description": "Research and documentation agent"
-    },
-    "apollo": {
-      "enabled": true,
-      "description": "Test and quality agent"
-    },
-    "artemis": {
-      "enabled": true,
-      "description": "Debug and trace agent"
-    },
-    "ares": {
-      "enabled": true,
-      "description": "Refactoring agent"
-    },
-    "dionysus": {
-      "enabled": true,
-      "description": "Creative writing agent"
-    },
-    "demeter": {
-      "enabled": true,
-      "description": "Documentation agent"
-    },
-    "poseidon": {
-      "enabled": true,
-      "description": "Infrastructure agent"
-    }
+    "sisyphus": { "model": "localvllm/<model-name>", "description": "Main orchestrator" },
+    "hephaestus": { "model": "localvllm/<model-name>", "description": "Auto worker" },
+    "oracle": { "model": "localvllm/<model-name>", "description": "Read-only consultant" },
+    "librarian": { "model": "localvllm/<model-name>", "description": "Reference search" },
+    "explore": { "model": "localvllm/<model-name>", "description": "Contextual grep" },
+    "multimodal-looker": { "model": "localvllm/<model-name>", "description": "Vision analysis" },
+    "prometheus": { "model": "localvllm/<model-name>", "description": "Strategic planner" },
+    "metis": { "model": "localvllm/<model-name>", "description": "Pre-planning consultant" },
+    "momus": { "model": "localvllm/<model-name>", "description": "Plan reviewer" },
+    "atlas": { "model": "localvllm/<model-name>", "description": "Task orchestrator" },
+    "sisyphus-junior": { "model": "localvllm/<model-name>" }
   },
-
-  // ===== 카테고리별 모델 오버라이드 =====
-  // 로컬 vLLM 환경에서는 모든 카테고리를 동일 모델로 설정
-  "category_model_overrides": {
-    "coding": "localvllm/Qwen/Qwen3.5-32B",
-    "planning": "localvllm/Qwen/Qwen3.5-32B",
-    "research": "localvllm/Qwen/Qwen3.5-32B",
-    "review": "localvllm/Qwen/Qwen3.5-32B",
-    "debug": "localvllm/Qwen/Qwen3.5-32B",
-    "test": "localvllm/Qwen/Qwen3.5-32B",
-    "writing": "localvllm/Qwen/Qwen3.5-32B",
-    "refactoring": "localvllm/Qwen/Qwen3.5-32B",
-    "infrastructure": "localvllm/Qwen/Qwen3.5-32B"
-  },
-
-  // ===== 기능 설정 =====
-  "features": {
-    "background_agent": false,
-    "skill_loader": false
-  },
-
-  // ===== 로깅 =====
-  "log_level": "info"
+  "categories": {
+    "visual-engineering": { "model": "localvllm/<model-name>", "description": "Frontend/UX" },
+    "ultrabrain": { "model": "localvllm/<model-name>", "description": "Complex logic" },
+    "deep": { "model": "localvllm/<model-name>", "description": "Deep problem solving" },
+    "artistry": { "model": "localvllm/<model-name>", "description": "Creative/complex" },
+    "quick": { "model": "localvllm/<model-name>", "description": "Quick fixes" },
+    "unspecified-low": { "model": "localvllm/<model-name>", "description": "Low-priority" },
+    "unspecified-high": { "model": "localvllm/<model-name>", "description": "High-priority" },
+    "writing": { "model": "localvllm/<model-name>", "description": "Documentation" }
+  }
 }
 ```
 
-> 모델명은 `opencode.json`의 provider에 설정한 모델명과 정확히 일치해야 한다.
-> vLLM 서버에서 서빙 중인 모델이 다르면 해당 모델명으로 전부 교체한다.
+> **`<model-name>`을 전부 동일한 모델명으로 교체한다** (예: `Qwen3.5-35B-A3B`).
+> 모델이 여러 개 있으면 에이전트별로 다른 모델을 지정할 수 있다 (예: quick은 경량 모델).
 
 ---
 

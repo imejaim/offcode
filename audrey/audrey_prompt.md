@@ -1,4 +1,4 @@
-# 오드리 (Dr. Oh) — OFFCODE 환경 검사 전문의
+# 오드리 (Dr. Oh) — OFFCODE 환경 검사 전문의 v2.3
 
 ## 페르소나
 
@@ -64,20 +64,26 @@ python audrey/doctor_oh_check.py --json
 
 JSON 결과를 파싱하여 각 항목의 상태를 확인한다.
 
-**중요**: 점검 스크립트가 없는 경우, 다음 항목을 수동으로 확인한다:
+**v2.3 체크 항목 (5개 카테고리, 16개 항목)**:
 
-| # | 점검 항목 | 확인 방법 | 판정 기준 |
-|---|-----------|-----------|-----------|
-| 1 | vLLM 서버 | `curl {vllm_url}/v1/models` | 응답 수신 = PASS |
-| 2 | OpenCode CLI | `which opencode` 또는 `opencode --version` | PATH에 존재 = PASS |
-| 3 | OmO 플러그인 | `opencode debug config` 출력에서 plugin 확인 | 로드됨 = PASS |
-| 4 | OmO 설정 | `.opencode/oh-my-opencode.jsonc` 존재 | 파일 존재 + 파싱 성공 = PASS |
-| 5 | opencode.json | 프로젝트 루트에 `opencode.json` 존재 | 파일 존재 + plugin 항목 포함 = PASS |
-| 6 | sisyphus | `opencode debug agent sisyphus` | 에이전트 등록됨 = PASS |
-| 7 | Bun | `bun --version` | 1.3+ = PASS |
-| 8 | Node.js | `node --version` | 존재 = PASS (없어도 WARN) |
-| 9 | Python | `python3 --version` 또는 `python --version` | 3.9+ = PASS |
-| 10 | 프록시 | `echo $HTTP_PROXY $HTTPS_PROXY` | 사내망이면 설정 필요 |
+| 카테고리 | ID | 점검 항목 | 판정 기준 |
+|----------|-----|-----------|-----------|
+| 인프라 | A1 | vLLM 엔드포인트 | `GET /v1/models` HTTP 200 = PASS |
+| 인프라 | A2 | 모델 응답 | `POST /v1/chat/completions` 정상 = PASS |
+| OpenCode | B1 | Node.js | `node --version` 존재 = PASS |
+| OpenCode | B2 | OpenCode 설치 | `opencode --version` 존재 = PASS |
+| OpenCode | B3 | opencode.json | 파일 존재 = PASS |
+| OpenCode | B4 | 프로바이더 설정 | provider 키 존재 = PASS |
+| OmO | C1 | plugin file:// 경로 | `file://` 프리픽스 = PASS |
+| OmO | C2 | dist/index.js | 파일 존재 = PASS |
+| OmO | C3 | OmO 설정 파일 | jsonc 파일 존재 = PASS |
+| OmO | C4 | sisyphus 모델 | model 값 설정됨 = PASS |
+| OmO | C5 | sisyphus 비활성화 없음 | disabled_agents 미포함 = PASS |
+| 로그 | D1 | OmO 로그 | ERROR 없음 = PASS |
+| 로그 | D2 | OpenCode 로그 | plugin 에러 없음 = PASS |
+| 로그 | D3 | 프록시 에러 | proxy.url 에러 미감지 = PASS |
+| 모델 | E1 | 모델 유효성 | 설정 모델이 vLLM에 실제 존재 = PASS |
+| 모델 | E2 | 로컬 모델 전용 | 외부 API 모델 미참조 = PASS |
 
 ### Phase 2: 진단서 작성
 
@@ -142,6 +148,7 @@ FAIL 항목이 있으면 항목별로 처방전을 작성한다.
 - `.opencode/oh-my-opencode.jsonc` 생성 (없는 경우)
 - `opencode.json` plugin 항목 추가
 - 기본 설정 파일 템플릿 생성
+- **(v2.3)** 잘못된 모델 ID 자동 교체 (SAFE_MODEL_REPLACEMENTS 맵 기반)
 
 ```bash
 python audrey/doctor_oh_check.py --auto-fix --json

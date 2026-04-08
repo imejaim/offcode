@@ -1,4 +1,4 @@
-# 오드리 (Dr. Oh) - OFFCODE 환경 검사 v1.0
+# 오드리 (Dr. Oh) - OFFCODE 환경 검사 v2.3
 
 사내 폐쇄망 OFFCODE 환경(vLLM + OpenCode + OmO 플러그인)의 상태를 자동 진단하는 도구입니다.
 
@@ -13,8 +13,10 @@
 ```
 audrey/
 ├── doctor_oh_check.py     # 메인 체크 스크립트
-├── README.md              # 이 파일
-└── config.json            # 체크 대상 설정 (vLLM URL, 경로 등)
+├── audrey_prompt.md       # 에이전트 페르소나 프롬프트
+├── config.json            # 체크 대상 설정 (vLLM URL, 경로 등)
+├── SKILL.md               # 스킬 등록 메타데이터
+└── README.md              # 이 파일
 ```
 
 ## 사용법
@@ -31,12 +33,19 @@ python doctor_oh_check.py --category infra      # 인프라만
 python doctor_oh_check.py --category opencode   # OpenCode만
 python doctor_oh_check.py --category omo        # OmO 플러그인만
 python doctor_oh_check.py --category logs       # 로그 & 캐시만
+python doctor_oh_check.py --category model      # 모델 검증만
+
+# 자동 수정 (안전한 모델 교체 등)
+python doctor_oh_check.py --auto-fix --json
+
+# 프로젝트 디렉터리 지정
+python doctor_oh_check.py --project "C:\myproject"
 
 # 별도 config 경로 지정
 python doctor_oh_check.py --config /path/to/config.json
 ```
 
-## 체크 항목 (14개)
+## 체크 항목 (16개)
 
 ### A. 인프라 (2개)
 
@@ -60,7 +69,7 @@ python doctor_oh_check.py --config /path/to/config.json
 |----|------|------|
 | C1 | plugin file:// 경로 | plugin이 `file://` 로컬 경로인지 (npm이면 WARN) |
 | C2 | dist/index.js 존재 | plugin 경로의 dist/index.js 실제 존재 여부 |
-| C3 | oh-my-openagent.jsonc | OmO 설정 파일 존재 확인 |
+| C3 | OmO 설정 파일 | oh-my-openagent.jsonc / oh-my-opencode.jsonc 존재 확인 |
 | C4 | sisyphus 모델 설정 | `agents.sisyphus.model` 값 확인 |
 | C5 | sisyphus 비활성화 없음 | `disabled_agents`에 sisyphus 미포함 확인 |
 
@@ -71,6 +80,13 @@ python doctor_oh_check.py --config /path/to/config.json
 | D1 | OmO 로그 | `%TEMP%/oh-my-opencode.log` (또는 `/tmp/`) 에러 확인 |
 | D2 | OpenCode 로그 | `~/.local/share/opencode/log/` plugin 에러 확인 |
 | D3 | 프록시 에러 | `proxy.url must be a non-empty string` 감지 |
+
+### E. 모델 검증 (2개) — v2.3 신규
+
+| ID | 항목 | 설명 | 자동수정 |
+|----|------|------|----------|
+| E1 | 모델 유효성 | 설정된 모델이 vLLM에 실제 서빙 중인지 확인 | ✅ SAFE_MODEL_REPLACEMENTS |
+| E2 | 로컬 모델 전용 | 외부 API 프로바이더(openai, anthropic 등) 모델 감지 경고 | - |
 
 ## 결과 상태
 
@@ -103,3 +119,14 @@ python doctor_oh_check.py --config /path/to/config.json
 
 - `0`: 모든 체크 통과 (WARN은 허용)
 - `1`: 하나 이상의 FAIL 존재
+
+## v2.3 변경 이력
+
+| 항목 | v1.0 | v2.3 |
+|------|------|------|
+| JSONC 파서 | regex 기반 주석 제거 | 문자열 내부 인식 char-by-char + BOM(utf-8-sig) |
+| subprocess | 10초 타임아웃 | 30초 + shell=True 폴백 |
+| 모델 검증 | 없음 | E1: vLLM 대조, E2: 외부 API 감지 |
+| 자동 수정 | 없음 | --auto-fix (SAFE_MODEL_REPLACEMENTS) |
+| CLI | --category, --config | + --project, --auto-fix |
+| OmO 설정 탐색 | oh-my-openagent만 | oh-my-opencode도 탐색 (dual publish) |
