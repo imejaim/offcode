@@ -51,7 +51,7 @@ if sys.stderr.encoding and sys.stderr.encoding.lower().replace("-", "") != "utf8
 # 상수
 # ---------------------------------------------------------------------------
 
-VERSION = "2.3"
+VERSION = "2.31"
 
 STATUS_PASS = "PASS"
 STATUS_FAIL = "FAIL"
@@ -587,6 +587,133 @@ def check_c5_sisyphus_not_disabled(cfg: Dict[str, Any]) -> CheckResult:
     return CheckResult("C5", "sisyphus 비활성화 없음", STATUS_PASS, "", CATEGORY_OMO)
 
 
+def _detect_omo_install() -> Tuple[Optional[str], Optional[Path], str]:
+    """OmO 설치 정보 자동 감지. (패키지명, 설치경로, 업데이트 명령어) 반환.
+
+    플랫폼별 자동 판단:
+    - 윈도우: ~/.config/opencode/node_modules/oh-my-openagent (로컬 설치)
+    - 리눅스: $(npm root -g)/oh-my-opencode (글로벌 설치)
+    """
+    is_win = platform.system() == "Windows"
+
+    # 로컬 설치 탐색 (윈도우 우선)
+    local_candidates = [
+        ("oh-my-openagent", expand_path("~/.config/opencode/node_modules/oh-my-openagent")),
+        ("oh-my-opencode", expand_path("~/.config/opencode/node_modules/oh-my-opencode")),
+    ]
+    for pkg_name, pkg_path in local_candidates:
+        pkg_json = pkg_path / "package.json"
+        if pkg_json.exists():
+            update_cmd = f"cd {pkg_path.parent.parent} && npm update {pkg_name}"
+            return pkg_name, pkg_path, update_cmd
+
+    # 글로벌 설치 탐색 (리눅스 우선)
+    rc, out, _ = run_command(["npm", "root", "-g"], timeout=10)
+    if rc == 0 and out:
+        global_root = Path(out.strip())
+        global_candidates = [
+            ("oh-my-opencode", global_root / "oh-my-opencode"),
+            ("oh-my-openagent", global_root / "oh-my-openagent"),
+        ]
+        for pkg_name, pkg_path in global_candidates:
+            pkg_json = pkg_path / "package.json"
+            if pkg_json.exists():
+                update_cmd = f"npm update -g {pkg_name}"
+                return pkg_name, pkg_path, update_cmd
+
+    return None, None, ""
+
+
+def _get_installed_omo_version(pkg_path: Path) -> Optional[str]:
+    """설치된 OmO 패키지의 버전을 package.json에서 읽기."""
+    pkg_json = pkg_path / "package.json"
+    if not pkg_json.exists():
+        return None
+    try:
+        data = json.loads(pkg_json.read_text(encoding="utf-8"))
+        return data.get("version")
+    except Exception:
+        return None
+
+
+def _get_latest_omo_version(pkg_name: str) -> Optional[str]:
+    """npm 레지스트리에서 최신 버전 조회."""
+    url = f"https://registry.npmjs.org/{pkg_name}/latest"
+    try:
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("version")
+    except Exception:
+        return None
+
+
+def check_c6_omo_version(cfg: Dict[str, Any], auto_fix: bool = False) -> List[CheckResult]:
+    """C6: OmO 버전 확인 및 업데이트 안내.
+
+    - 설치된 버전 확인 (package.json)
+    - npm 레지스트리에서 최신 버전 조회
+    - 업데이트 필요 시 플랫폼별 명령어 안내
+    - --auto-fix 시 자동 업데이트 실행
+    """
+    results: List[CheckResult] = []
+    pkg_name, pkg_path, update_cmd = _detect_omo_install()
+
+    if pkg_name is None or pkg_path is None:
+        results.append(CheckResult(
+            "C6", "OmO 버전", STATUS_WARN,
+            "OmO 설치 경로를 찾지 못함", CATEGORY_OMO,
+        ))
+        return results
+
+    installed = _get_installed_omo_version(pkg_path)
+    if not installed:
+        results.append(CheckResult(
+            "C6", "OmO 버전", STATUS_WARN,
+            f"버전 읽기 실패: {pkg_path}", CATEGORY_OMO,
+        ))
+        return results
+
+    latest = _get_latest_omo_version(pkg_name)
+    if not latest:
+        results.append(CheckResult(
+            "C6", "OmO 버전", STATUS_PASS,
+            f"{pkg_name}@{installed} (최신 버전 조회 실패 — 네트워크 문제?)", CATEGORY_OMO,
+        ))
+        return results
+
+    if installed == latest:
+        results.append(CheckResult(
+            "C6", "OmO 버전", STATUS_PASS,
+            f"{pkg_name}@{installed} (최신)", CATEGORY_OMO,
+        ))
+        return results
+
+    # 업데이트 필요
+    if auto_fix:
+        rc, out, err = run_command(update_cmd.split(), timeout=60)
+        if rc == 0:
+            new_ver = _get_installed_omo_version(pkg_path) or "?"
+            results.append(CheckResult(
+                "C6", "OmO 버전", STATUS_PASS,
+                f"{pkg_name} 업데이트 완료: {installed} → {new_ver}", CATEGORY_OMO,
+            ))
+        else:
+            results.append(CheckResult(
+                "C6", "OmO 버전", STATUS_WARN,
+                f"{pkg_name}@{installed} → {latest} 업데이트 실패: {err[:80]}", CATEGORY_OMO,
+                fix=update_cmd,
+            ))
+    else:
+        results.append(CheckResult(
+            "C6", "OmO 버전", STATUS_WARN,
+            f"{pkg_name}@{installed} → {latest} 업데이트 가능", CATEGORY_OMO,
+            fix=update_cmd,
+        ))
+
+    return results
+
+
 # ---------------------------------------------------------------------------
 # D. 로그 & 캐시 체크
 # ---------------------------------------------------------------------------
@@ -813,7 +940,7 @@ CHECK_REGISTRY: Dict[str, List] = {
     CATEGORY_OPENCODE: [check_b1_nodejs, check_b2_opencode_install, check_b3_opencode_json, check_b4_provider_config],
     CATEGORY_OMO: [check_c1_plugin_file_path, check_c2_dist_index_js, check_c3_omo_config_exists, check_c4_sisyphus_model, check_c5_sisyphus_not_disabled],
     CATEGORY_LOGS: [check_d1_omo_log, check_d2_opencode_log, check_d3_proxy_error],
-    # E 카테고리는 run_checks에서 별도 처리 (auto_fix 파라미터 필요)
+    # C6, E 카테고리는 run_checks에서 별도 처리 (auto_fix 파라미터 필요)
 }
 
 
@@ -854,6 +981,14 @@ def run_checks(
             if not result.category:
                 result.category = cat
             results.append(result)
+
+        # C6: OmO 버전 체크 (C 카테고리 끝에 추가, auto_fix 필요)
+        if cat == CATEGORY_OMO:
+            try:
+                results.extend(check_c6_omo_version(cfg, auto_fix=auto_fix))
+            except Exception as exc:
+                results.append(CheckResult("C6", "OmO 버전", STATUS_FAIL, f"예외: {exc}", CATEGORY_OMO))
+
     return results
 
 
