@@ -12,3 +12,7 @@ https://github.com/anomalyco/opencode
 oh-my-openagent 깃허브
 https://github.com/code-yeongyu/oh-my-openagent
 
+
+
+vllm gist 주소
+https://gist.github.com/imejaim/bc9a39b56f7703d38f0fd59c8f777b0b

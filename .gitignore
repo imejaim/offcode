@@ -7,3 +7,6 @@ oh-my-openagent-dev/
 
 # Claude Code local
 .claude/
+
+# Python cache
+__pycache__/
