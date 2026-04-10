@@ -1,0 +1,2331 @@
+=== Comment #6090141 | 2026-04-10T01:08:10Z ===
+## 26B-A4B 서빙 (수정)
+
+이전 에러: `gpu-memory-utilization 0.5` → 96GB×0.5=48GB < 모델 49GB → KV캐시 -5.7GB
+
+0.5→0.7로 수정 (96GB×0.7=67GB, 여유 18GB):
+```bash
+source ~/gemma4venv/bin/activate && CUDA_VISIBLE_DEVICES=1 python -m vllm.entrypoints.openai.api_server --model /home/dongho.yoon/models/gemma-4-26B-A4B-it --host 0.0.0.0 --port 8001 --served-model-name gemma-4-26B-A4B-it --max-model-len 32768 --enable-auto-tool-choice --tool-call-parser gemma4 --enforce-eager --tensor-parallel-size 1 --gpu-memory-utilization 0.7
+```
+
+=== Comment #6090144 | 2026-04-10T01:15:56Z ===
+## 26B-A4B 서빙 명령어 (여러줄 설명)
+
+bash에서 줄 끝에 `\`(백슬래시) 붙이면 다음 줄로 이어집니다.
+
+```bash
+source ~/gemma4venv/bin/activate && \
+CUDA_VISIBLE_DEVICES=1 \
+  python -m vllm.entrypoints.openai.api_server \
+  --model /home/dongho.yoon/models/gemma-4-26B-A4B-it \
+  --host 0.0.0.0 \
+  --port 8001 \
+  --served-model-name gemma-4-26B-A4B-it \
+  --max-model-len 32768 \
+  --enable-auto-tool-choice \
+  --tool-call-parser gemma4 \
+  --enforce-eager \
+  --tensor-parallel-size 1 \
+  --gpu-memory-utilization 0.7
+```
+
+각 옵션 설명:
+- `source ~/gemma4venv/bin/activate` — Gemma4 전용 가상환경 활성화
+- `CUDA_VISIBLE_DEVICES=1` — GPU 1번만 사용
+- `--model ...` — 모델 경로
+- `--host 0.0.0.0` — 외부(데스크탑)에서 접속 허용
+- `--port 8001` — Qwen(8000)과 분리
+- `--served-model-name` — API에서 쓸 모델 이름
+- `--max-model-len 32768` — 최대 컨텍스트 길이 (32K)
+- `--enable-auto-tool-choice` — tool call 자동 감지
+- `--tool-call-parser gemma4` — Gemma4 전용 파서
+- `--enforce-eager` — CUDA 그래프 비활성화 (호환성)
+- `--tensor-parallel-size 1` — GPU 1장 사용
+- `--gpu-memory-utilization 0.7` — VRAM 67GB 할당 (모델 49GB + KV캐시 18GB)
+
+=== Comment #6090148 | 2026-04-10T01:26:50Z ===
+## vLLM 서빙 옵션 참고
+
+설치된 버전 기준 전체 옵션 확인:
+```bash
+python -m vllm.entrypoints.openai.api_server --help
+```
+
+공식 문서: https://docs.vllm.ai
+
+자주 쓸만한 추가 옵션:
+- `--dtype auto|bfloat16|float16` — 모델 정밀도
+- `--quantization awq|gptq|squeezellm` — 양자화 방식
+- `--max-num-seqs 256` — 동시 요청 수 제한
+- `--trust-remote-code` — 커스텀 모델 코드 허용
+
+---
+
+## 26B-A4B 서빙 상태 확인
+
+```bash
+curl http://localhost:8001/v1/models
+```
+```bash
+curl http://localhost:8001/v1/chat/completions -H 'Content-Type: application/json' -d '{"model":"gemma-4-26B-A4B-it","messages":[{"role":"user","content":"hello"}],"max_tokens":50}'
+```
+```bash
+nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv
+```
+
+=== Comment #6090151 | 2026-04-10T01:30:25Z ===
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ ll
+total 32
+drwxrwxr-x  8 dongho.yoon dongho.yoon 4096  4월  9 17:31 ./
+drwxr-x--- 32 dongho.yoon dongho.yoon 4096  4월  9 17:22 ../
+drwxrwxr-x  3 dongho.yoon dongho.yoon 4096  4월  9 14:01 gemma-4-26B-A4B-it/
+drwxrwxr-x  2 dongho.yoon dongho.yoon 4096  4월  9 18:08 gemma-4-31b-it/
+drwxrwxr-x  2 dongho.yoon dongho.yoon 4096  4월  9 12:55 gemma-4-E4B-it/
+drwxrwxr-x  3 dongho.yoon dongho.yoon 4096  4월  8 17:55 gemma-4-E4B-it-git/
+drwxrwxr-x  3 dongho.yoon dongho.yoon 4096  3월 26 17:40 Qwen3.5-122B-A10B-FP8/
+drwxrwxr-x  2 dongho.yoon dongho.yoon 4096  3월 19 12:13 Qwen3.5-35B-A3B/
+
+31b 도 다운로드 된듯. 확인해보자. 그리고 E4B-it-git 은 뭘까? 
+
+=== Comment #6090152 | 2026-04-10T01:32:50Z ===
+모델 옵션은 엄청 많네. 옵션중에 코딩을 정확하게? 하려면 정밀도 같은 것을 조절하거나 하면 효과가 있을까? temperature 였나? 이런 값이 모델 상상력을 조절하는 옵션이었던 기억이 있거든. 
+
+=== Comment #6090155 | 2026-04-10T01:36:50Z ===
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ curl http://localhost:8001/v1/models
+{"object":"list","data":[{"id":"gemma-4-26B-A4B-it","object":"model","created":1775784853,"owned_by":"vllm","root":"/home/dongho.yoon/models/gemma-4-26B-A4B-it","parent":null,"max_model_len":32768,"permission":[{"id":"modelperm-b39170d0d84a01cb","object":"model_permission","created":1775784853,"allow_create_engine":false,"allow_sampling":true,"allow_logprobs":true,"allow_search_indices":false,"allow_view":true,"allow_fine_tuning":false,"organization":"*","group":null,"is_blocking":false}]}]}(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ curl http://localhost:8001/v1/chat/completions -H 'Content-Type: application/json' -d '{"model":"gemma-4-26B-A4B-it","messages":[{"role":"user","content":"hello"}],"max_tokens":50}'
+{"id":"chatcmpl-93acd320509c45df","object":"chat.completion","created":1775784927,"model":"gemma-4-26B-A4B-it","choices":[{"index":0,"message":{"role":"assistant","content":"Hello! How can I help you today?","refusal":null,"annotations":null,"audio":null,"function_call":null,"tool_calls":[],"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":106,"token_ids":null}],"service_tier":null,"system_fingerprint":null,"usage":{"prompt_tokens":14,"total_tokens":24,"completion_tokens":10,"prompt_tokens_details":null},"prompt_logprobs":null,"prompt_token_ids":null,"kv_transfer_params":null}(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv
+index, memory.used [MiB], memory.total [MiB]
+0, 88463 MiB, 97887 MiB
+1, 70053 MiB, 97887 MiB
+
+=== Comment #6090157 | 2026-04-10T01:40:17Z ===
+댓글 복붙 스타일로 적어줄때, 아래와 같이 설명을 # 샵으로 하고 명령어를 한번에 다 적어주는 방식으로 해줘. 
+전에 이렇게 해서 내가 한방에 복붙했는데.. 이게 설명도 있고, 적당히 스탭 바이 스탭으로 좋은거 같아.
+
+# Python 3.8 이상 필요
+python --version
+
+# 가상환경 생성 (선택사항이지만 권장)
+python -m venv .venv
+source .venv/Scripts/activate   # Windows Git Bash
+# .venv\Scripts\activate        # Windows CMD
+
+# 의존성 설치
+pip install python-docx openpyxl Pillow
+
+=== Comment #6090160 | 2026-04-10T01:43:27Z ===
+## 답변
+
+### E4B-it-git 폴더
+이전에 git clone/huggingface-cli로 다운받다 만 잔여물입니다. E4B-it이 이미 있으니 삭제해도 됩니다.
+```bash
+# E4B-it-git 용량 확인
+du -sh ~/models/gemma-4-E4B-it-git/
+
+# 필요없으면 삭제
+# rm -rf ~/models/gemma-4-E4B-it-git/
+```
+
+### temperature와 코딩 정확도
+맞습니다. `temperature`가 모델의 "상상력"을 조절합니다.
+
+- `temperature=0.0` — 항상 같은 답, 가장 결정적. **코딩에 추천**
+- `temperature=0.2~0.4` — 약간의 변화, 적당한 창의성
+- `temperature=0.7~1.0` — 다양한 답, 창의적 글쓰기용
+
+이건 **서버 시작 옵션이 아니라 API 호출 시** 설정합니다:
+```bash
+curl http://localhost:8001/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"gemma-4-26B-A4B-it","messages":[{"role":"user","content":"hello"}],"temperature":0.0,"max_tokens":50}'
+```
+
+OpenCode/OmO에서는 `opencode.json`에서 설정 가능합니다.
+
+`--dtype`(서버 옵션)은 VRAM 절약용이지 정확도와는 다른 개념입니다.
+
+### 26B-A4B 서빙 확인 완료!
+GPU 0: Qwen 88GB / GPU 1: 26B-A4B 70GB — 정상.
+
+### 댓글 포맷
+알겠습니다. 앞으로 `# 주석` + 명령어 한 블록 방식으로 드리겠습니다.
+
+=== Comment #6090251 | 2026-04-10T04:03:44Z ===
+## 🔧 Gemma4 Ollama 전환 — Step 1: 설치 + E2B 테스트
+
+Qwen vLLM은 그대로 두고, Ollama를 추가로 설치해서 Gemma4부터 테스트합니다.
+E2B(가장 가벼운 것)부터 시작 → tool call 검증 → 멈춤 현상 체크 → OK면 나머지 모델 확장.
+
+---
+
+### 1단계: Ollama 설치 (프록시 경유)
+
+```bash
+# 프록시 설정 확인
+echo $http_proxy
+echo $https_proxy
+
+# 프록시 없으면 설정
+export http_proxy=http://168.219.61.252:8080
+export https_proxy=http://168.219.61.252:8080
+
+# Ollama 설치
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 설치 확인
+ollama --version
+```
+
+### 2단계: Ollama 서비스 시작 + GPU 확인
+
+```bash
+# Ollama 서비스 시작 (백그라운드)
+ollama serve &
+
+# GPU 현황 확인 (Qwen vLLM이 GPU0 쓰고 있을 것)
+nvidia-smi
+
+# Ollama가 GPU1을 쓰도록 설정 (GPU0은 Qwen vLLM 유지)
+export CUDA_VISIBLE_DEVICES=1
+```
+
+### 3단계: Gemma4 모델 검색 + E2B 다운로드
+
+```bash
+# 어떤 Gemma4 모델이 있는지 검색
+ollama list
+
+# Gemma4 태그 확인 (e2b가 있는지)
+ollama show gemma4 --modelfile 2>/dev/null || echo "아직 없음, pull 먼저"
+
+# E2B 다운로드 (가장 가벼운 것부터)
+ollama pull gemma4:e2b
+
+# 없으면 이 태그들 시도
+# ollama pull gemma3:4b    (gemma4 e2b가 없을 경우 대안)
+```
+
+> ⚠️ `gemma4:e2b` 태그가 정확하지 않을 수 있습니다.
+> 다운 안 되면 `ollama search gemma` 또는 https://ollama.com/library/gemma4 에서 태그 확인 후 알려주세요.
+
+### 4단계: 기본 동작 테스트
+
+```bash
+# 기본 채팅 테스트
+ollama run gemma4:e2b "안녕하세요. 1+1은?"
+
+# API 엔드포인트 테스트
+curl http://localhost:11434/v1/models
+
+# OpenAI-compatible API 테스트
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:e2b","messages":[{"role":"user","content":"hello"}],"temperature":0.0}'
+```
+
+### 5단계: 🔴 핵심 — Tool Call 테스트 (시지푸스 필수)
+
+```bash
+# tool call 테스트 (시지푸스가 이걸 써야 함)
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+  "model": "gemma4:e2b",
+  "messages": [{"role":"user","content":"What is the weather in Seoul?"}],
+  "tools": [{
+    "type": "function",
+    "function": {
+      "name": "get_weather",
+      "description": "Get weather for a city",
+      "parameters": {
+        "type": "object",
+        "properties": {"city": {"type": "string"}},
+        "required": ["city"]
+      }
+    }
+  }],
+  "temperature": 0.0
+}'
+```
+
+### 6단계: 멈춤 현상 체크
+
+```bash
+# 연속 요청 5회 (행걸림 테스트)
+for i in 1 2 3 4 5; do
+  echo "--- Request $i ---"
+  time curl -s http://localhost:11434/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{"model":"gemma4:e2b","messages":[{"role":"user","content":"Say OK"}],"temperature":0.0}' | head -c 200
+  echo ""
+done
+
+# 긴 응답 테스트 (멈춤 없이 완료되는지)
+time curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:e2b","messages":[{"role":"user","content":"Write a Python function to sort a list and explain it step by step"}],"temperature":0.0,"max_tokens":1024}'
+```
+
+---
+
+**결과 알려주실 것:**
+1. Ollama 설치 성공 여부
+2. gemma4:e2b pull 성공 여부 (실패 시 태그 목록)
+3. tool call 응답에 `tool_calls` 필드가 있는지
+4. 멈춤 현상 발생 여부 + 각 요청 소요 시간
+5. `nvidia-smi` 결과 (GPU 메모리 사용량)
+
+=== Comment #6090254 | 2026-04-10T04:09:38Z ===
+Every 2.0s: nvidia-smi                                          user-GNRD8-2L2T: Fri Apr 10 13:08:56 2026
+
+Fri Apr 10 13:08:56 2026
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA RTX PRO 6000 Blac...    Off |   00000000:46:00.0 Off |                  Off |
+| 30%   32C    P8             24W /  600W |   88463MiB /  97887MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA RTX PRO 6000 Blac...    Off |   00000000:60:00.0 Off |                  Off |
+| 30%   30C    P8             21W /  600W |      18MiB /  97887MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2710      G   /usr/lib/xorg/Xorg                      266MiB |
+|    0   N/A  N/A            2910      G   /usr/bin/gnome-shell                     24MiB |
+|    0   N/A  N/A         4069089      C   VLLM::EngineCore                      88112MiB |
+|    1   N/A  N/A            2710      G   /usr/lib/xorg/Xorg                        4MiB |
++-----------------------------------------------------------------------------------------+
+
+GPU  1 을 내가 중지했었고, 
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama serve &
+[1] 1158073
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ Error: listen tcp 127.0.0.1:11434: bind: address already in use
+^C
+[1]+  Exit 1                  ollama serve
+
+뭔가 이미 사용중이라고 나오는데..
+
+
+=== Comment #6090255 | 2026-04-10T04:10:32Z ===
+## Ollama 이미 실행 중! 바로 진행
+
+systemd 서비스로 돌고 있어서 ollama serve 불필요. GPU1 비어있고 완벽.
+
+### 바로 실행
+
+```bash
+# 상태 확인
+ollama --version
+ollama list
+systemctl status ollama
+
+# E2B 다운로드
+ollama pull gemma4:e2b
+```
+
+> pull 안되면 프록시 설정 필요:
+> ```bash
+> sudo systemctl edit ollama
+> ```
+> 편집기에 추가:
+> ```
+> [Service]
+> Environment="http_proxy=http://168.219.61.252:8080"
+> Environment="https_proxy=http://168.219.61.252:8080"
+> ```
+> 저장 후:
+> ```bash
+> sudo systemctl daemon-reload
+> sudo systemctl restart ollama
+> ollama pull gemma4:e2b
+> ```
+
+### pull 성공하면 테스트
+
+```bash
+# 기본 채팅
+ollama run gemma4:e2b "1+1은?"
+
+# API 모델 목록
+curl http://localhost:11434/v1/models
+
+# tool call 테스트 (핵심!)
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:e2b","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+```
+
+**알려주실 것:** ollama list 결과, pull 성공여부, 실패시 에러 메시지
+
+=== Comment #6090259 | 2026-04-10T04:12:55Z ===
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama --version
+ollama version is 0.17.7
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama list
+NAME                    ID              SIZE     MODIFIED
+glm-4.7-flash:latest    e060d7f63f19    19 GB    3 weeks ago
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ systemctl status ollama
+● ollama.service - Ollama Service
+     Loaded: loaded (/etc/systemd/system/ollama.service; enabled; vendor preset: enabled)
+    Drop-In: /etc/systemd/system/ollama.service.d
+             └─override.conf
+     Active: active (running) since Tue 2026-03-10 13:46:54 KST; 1 month 0 days ago
+   Main PID: 1172661 (ollama)
+      Tasks: 72 (limit: 629145)
+     Memory: 18.4G
+        CPU: 4d 14h 52min 17.048s
+     CGroup: /system.slice/ollama.service
+             └─1172661 /usr/local/bin/ollama serve
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama pull gemma4:e2b
+pulling manifest
+Error: pull model manifest: 412:
+The model you are attempting to pull requires a newer version of Ollama.
+
+Please download the latest version at:
+
+        https://ollama.com/download
+
+
+내가 깜빡했는데 glm 을 돌리고 있었어 ㅎㅎㅎㅎ 
+
+=== Comment #6090260 | 2026-04-10T04:14:01Z ===
+## Ollama 업데이트 필요 (0.17.7 → 최신)
+
+Gemma4가 최신 Ollama 필요합니다. GLM도 돌리고 계셨네요 ㅎㅎ
+
+```bash
+# 현재 버전 확인 (0.17.7)
+ollama --version
+
+# Ollama 업데이트 (설치 스크립트가 자동으로 업데이트)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 업데이트 후 버전 확인
+ollama --version
+
+# 서비스 재시작 (systemd가 관리하니까)
+sudo systemctl restart ollama
+
+# 잠깐 대기 후 상태 확인
+systemctl status ollama
+
+# 다시 pull 시도
+ollama pull gemma4:e2b
+```
+
+> 프록시 때문에 curl 안 되면:
+> ```bash
+> export http_proxy=http://168.219.61.252:8080
+> export https_proxy=http://168.219.61.252:8080
+> curl -fsSL https://ollama.com/install.sh | sh
+> ```
+
+> 참고: GLM 모델은 그대로 유지됩니다. 업데이트해도 기존 모델 안 지워져요.
+
+=== Comment #6090277 | 2026-04-10T04:20:38Z ===
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama --version
+ollama version is 0.17.7
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama list
+NAME                    ID              SIZE     MODIFIED
+glm-4.7-flash:latest    e060d7f63f19    19 GB    3 weeks ago
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ systemctl status ollama
+● ollama.service - Ollama Service
+     Loaded: loaded (/etc/systemd/system/ollama.service; enabled; vendor preset: enabled)
+    Drop-In: /etc/systemd/system/ollama.service.d
+             └─override.conf
+     Active: active (running) since Tue 2026-03-10 13:46:54 KST; 1 month 0 days ago
+   Main PID: 1172661 (ollama)
+      Tasks: 72 (limit: 629145)
+     Memory: 18.4G
+        CPU: 4d 14h 52min 17.048s
+     CGroup: /system.slice/ollama.service
+             └─1172661 /usr/local/bin/ollama serve
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama pull gemma4:e2b
+pulling manifest
+Error: pull model manifest: 412:
+The model you are attempting to pull requires a newer version of Ollama.
+
+Please download the latest version at:
+
+        https://ollama.com/download
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ curl -fsSL https://ollama.com/install.sh | sh
+>>> Cleaning up old version at /usr/local/lib/ollama
+[sudo] password for dongho.yoon:
+Sorry, try again.
+[sudo] password for dongho.yoon:
+Sorry, try again.
+[sudo] password for dongho.yoon:
+dongho.yoon is not in the sudoers file.  This incident will be reported.
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ curl -fsSL https://ollama.com/install.sh | sh
+>>> Cleaning up old version at /usr/local/lib/ollama
+[sudo] password for dongho.yoon:
+Sorry, try again.
+[sudo] password for dongho.yoon:
+Sorry, try again.
+[sudo] password for dongho.yoon:
+dongho.yoon is not in the sudoers file.  This incident will be reported.
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama --version
+ollama version is 0.20.4
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama pull gemma4:e2b
+pulling manifest
+pulling 4e30e2665218:  14% ▕██████████                                                                ▏ 978 MB/7.2 GB  4.9 MB/s   21m0s
+
+
+되고 있다. 
+
+user@user-GNRD8-2L2T:~$ curl -fsSL https://ollama.com/install.sh | sh
+>>> Cleaning up old version at /usr/local/lib/ollama
+[sudo] password for user:
+>>> Installing ollama to /usr/local
+>>> Downloading ollama-linux-amd64.tar.zst
+######################################################################## 100.0%
+>>> Adding ollama user to render group...
+>>> Adding ollama user to video group...
+>>> Adding current user to ollama group...
+>>> Creating ollama systemd service...
+>>> Enabling and starting ollama service...
+>>> NVIDIA GPU installed.
+user@user-GNRD8-2L2T:~$
+user@user-GNRD8-2L2T:~$
+user@user-GNRD8-2L2T:~$ sudo systemctl restart ollama
+user@user-GNRD8-2L2T:~$
+
+
+
+=== Comment #6090292 | 2026-04-10T04:39:54Z ===
+## vLLM Gemma4 듀얼 구성: 31B(GPU0) + E4B(GPU1)
+
+Ollama 다운로드 기다리면서 vLLM으로 먼저 구성합니다.
+Qwen 내리고 → 31B(GPU0) + E4B(GPU1) 동시 서빙.
+
+---
+
+### 1. Qwen vLLM 중지
+
+```bash
+# Qwen vLLM PID 확인
+nvidia-smi | grep vLLM
+
+# 또는 직접
+ps aux | grep vllm | grep -v grep
+
+# Qwen 프로세스 종료 (PID 확인 후)
+kill 4069089
+```
+
+### 2. GPU 비워졌는지 확인
+
+```bash
+nvidia-smi
+```
+
+### 3. gemma4venv 활성화 + 31B 서빙 (GPU 0, 포트 8000)
+
+```bash
+source ~/gemma4venv/bin/activate
+
+# 31B 서빙 (GPU 0)
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-31b-it \
+  --served-model-name gemma-4-31b-it \
+  --port 8000 \
+  --gpu-memory-utilization 0.85 \
+  --max-model-len 32768 \
+  --tool-call-parser gemma4 \
+  --dtype bfloat16 \
+  --trust-remote-code &
+
+# 로딩 기다리기 (31B라 2~3분 걸릴 수 있음)
+# 로그에서 "Uvicorn running" 뜨면 완료
+```
+
+### 4. E4B 서빙 (GPU 1, 포트 8001)
+
+```bash
+# E4B 서빙 (GPU 1)
+CUDA_VISIBLE_DEVICES=1 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-E4B-it \
+  --served-model-name gemma-4-E4B-it \
+  --port 8001 \
+  --gpu-memory-utilization 0.4 \
+  --max-model-len 32768 \
+  --tool-call-parser gemma4 \
+  --dtype bfloat16 \
+  --trust-remote-code &
+```
+
+### 5. 둘 다 뜨면 테스트
+
+```bash
+# 모델 목록 확인
+curl http://localhost:8000/v1/models
+curl http://localhost:8001/v1/models
+
+# 31B 채팅 테스트
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"안녕하세요. 간단한 Python 함수 하나 작성해주세요."}],"temperature":0.0,"max_tokens":256}'
+
+# E4B 채팅 테스트
+curl http://localhost:8001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-E4B-it","messages":[{"role":"user","content":"1+1은?"}],"temperature":0.0,"max_tokens":64}'
+
+# 31B tool call 테스트 (시지푸스 핵심!)
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+
+# GPU 사용량 확인
+nvidia-smi
+```
+
+---
+
+**참고:**
+- 31B bf16 ≈ 62GB + KV캐시 → GPU0(96GB)에 0.85 util로 충분
+- E4B는 가벼워서 0.4 util로도 넉넉
+- Qwen은 나중에 필요하면 다시 올리면 됨
+
+**알려주실 것:**
+1. 31B 로딩 성공 여부
+2. tool call 응답 정상 여부
+3. nvidia-smi GPU 사용량
+4. 멈춤 현상 여부
+
+=== Comment #6090305 | 2026-04-10T04:54:07Z ===
+(APIServer pid=1183209) INFO 04-10 13:51:57 [utils.py:297]        █     █     █▄   ▄█
+(APIServer pid=1183209) INFO 04-10 13:51:57 [utils.py:297]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.18.0
+(APIServer pid=1183209) INFO 04-10 13:51:57 [utils.py:297]   █▄█▀ █     █     █     █  model   /home/dongho.yoon/models/gemma-4-31b-it
+(APIServer pid=1183209) INFO 04-10 13:51:57 [utils.py:297]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=1183209) INFO 04-10 13:51:57 [utils.py:297]
+(APIServer pid=1183209) INFO 04-10 13:51:57 [utils.py:233] non-default args: {'tool_call_parser': 'gemma4', 'model': '/home/dongho.yoon/models/gemma-4-31b-it', 'trust_remote_code': True, 'dtype': 'bfloat16', 'max_model_len': 32768, 'served_model_name': ['gemma-4-31b-it'], 'gpu_memory_utilization': 0.85}
+(APIServer pid=1183209) Traceback (most recent call last):
+(APIServer pid=1183209)   File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+(APIServer pid=1183209)     return _run_code(code, main_globals, None,
+(APIServer pid=1183209)   File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+(APIServer pid=1183209)     exec(code, run_globals)
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/vllm/entrypoints/openai/api_server.py", line 696, in <module>
+(APIServer pid=1183209)     uvloop.run(run_server(args))
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/uvloop/__init__.py", line 69, in run
+(APIServer pid=1183209)     return loop.run_until_complete(wrapper())
+(APIServer pid=1183209)   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=1183209)     return await main
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/vllm/entrypoints/openai/api_server.py", line 656, in run_server
+(APIServer pid=1183209)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/vllm/entrypoints/openai/api_server.py", line 670, in run_server_worker
+(APIServer pid=1183209)     async with build_async_engine_client(
+(APIServer pid=1183209)   File "/usr/lib/python3.10/contextlib.py", line 199, in __aenter__
+(APIServer pid=1183209)     return await anext(self.gen)
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/vllm/entrypoints/openai/api_server.py", line 103, in build_async_engine_client
+(APIServer pid=1183209)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=1183209)   File "/usr/lib/python3.10/contextlib.py", line 199, in __aenter__
+(APIServer pid=1183209)     return await anext(self.gen)
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/vllm/entrypoints/openai/api_server.py", line 129, in build_async_engine_client_from_engine_args
+(APIServer pid=1183209)     vllm_config = engine_args.create_engine_config(usage_context=usage_context)
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/vllm/engine/arg_utils.py", line 1508, in create_engine_config
+(APIServer pid=1183209)     model_config = self.create_model_config()
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/vllm/engine/arg_utils.py", line 1360, in create_model_config
+(APIServer pid=1183209)     return ModelConfig(
+(APIServer pid=1183209)   File "/home/dongho.yoon/vllmvenv/lib/python3.10/site-packages/pydantic/_internal/_dataclasses.py", line 121, in __init__
+(APIServer pid=1183209)     s.__pydantic_validator__.validate_python(ArgsKwargs(args, kwargs), self_instance=s)
+(APIServer pid=1183209) pydantic_core._pydantic_core.ValidationError: 1 validation error for ModelConfig
+(APIServer pid=1183209)   Value error, The checkpoint you are trying to load has model type `gemma4` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+(APIServer pid=1183209)
+(APIServer pid=1183209) You can update Transformers with the command `pip install --upgrade transformers`. If this does not work, and the checkpoint is very new, then there may not be a release version that supports this model yet. In this case, you can get the most up-to-date code by installing Transformers from source with the command `pip install git+https://github.com/huggingface/transformers.git` [type=value_error, input_value=ArgsKwargs((), {'model': ...rocessor_plugin': None}), input_type=ArgsKwargs]
+(APIServer pid=1183209)     For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+=== Comment #6090306 | 2026-04-10T04:54:39Z ===
+## 가상환경 오류 — gemma4venv 사용해야 합니다
+
+로그 보면 `vllmvenv`(vLLM 0.18.0, transformers 4.57)로 실행됨.
+Gemma4는 `gemma4venv`(vLLM 0.19.1rc1, transformers 5.5.0) 전용입니다.
+
+```bash
+# vllmvenv 프로세스가 남아있으면 종료
+ps aux | grep vllm | grep -v grep
+
+# gemma4venv로 전환
+deactivate 2>/dev/null
+source ~/gemma4venv/bin/activate
+
+# 환경 확인
+which python
+python -c "import vllm; print(vllm.__version__)"
+python -c "import transformers; print(transformers.__version__)"
+
+# 31B 서빙 (GPU 0, 포트 8000)
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-31b-it \
+  --served-model-name gemma-4-31b-it \
+  --port 8000 \
+  --gpu-memory-utilization 0.85 \
+  --max-model-len 32768 \
+  --tool-call-parser gemma4 \
+  --dtype bfloat16 \
+  --trust-remote-code &
+
+# "Uvicorn running" 뜨면 E4B도 시작
+CUDA_VISIBLE_DEVICES=1 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-E4B-it \
+  --served-model-name gemma-4-E4B-it \
+  --port 8001 \
+  --gpu-memory-utilization 0.4 \
+  --max-model-len 32768 \
+  --tool-call-parser gemma4 \
+  --dtype bfloat16 \
+  --trust-remote-code &
+```
+
+> 핵심: `source ~/gemma4venv/bin/activate` 꼭 먼저!
+
+=== Comment #6090308 | 2026-04-10T04:58:37Z ===
+(EngineCore pid=1186480)
+(EngineCore pid=1186480) INFO 04-10 13:57:39 [default_loader.py:384] Loading weights took 9.55 seconds
+(EngineCore pid=1186480) INFO 04-10 13:57:40 [gpu_model_runner.py:4827] Model loading took 58.9 GiB memory and 10.311455 seconds
+(EngineCore pid=1186480) INFO 04-10 13:57:40 [gpu_model_runner.py:5770] Encoder cache will be initialized with a budget of 8192 tokens, and profiled with 3 video items of the maximum feature size.
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112] EngineCore failed to start.
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112] Traceback (most recent call last):
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 1086, in run_engine_core
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     return func(*args, **kwargs)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 850, in __init__
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     super().__init__(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 126, in __init__
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     kv_cache_config = self._initialize_kv_caches(vllm_config)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     return func(*args, **kwargs)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 249, in _initialize_kv_caches
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     available_gpu_memory = self.model_executor.determine_available_memory()
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/executor/abstract.py", line 142, in determine_available_memory
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     return self.collective_rpc("determine_available_memory")
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/executor/uniproc_executor.py", line 80, in collective_rpc
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     result = run_method(self.driver_worker, method, args, kwargs)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/serial_utils.py", line 510, in run_method
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     return func(*args, **kwargs)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     return func(*args, **kwargs)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/worker/gpu_worker.py", line 370, in determine_available_memory
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     self.model_runner.profile_run()
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/worker/gpu_model_runner.py", line 5781, in profile_run
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     batched_dummy_mm_inputs = self._get_mm_dummy_batch(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/worker/gpu_model_runner.py", line 5186, in _get_mm_dummy_batch
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     dummy_mm_inputs = self.mm_registry.get_dummy_mm_inputs(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/multimodal/registry.py", line 235, in get_dummy_mm_inputs
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     processor_inputs = processor.dummy_inputs.get_dummy_processor_inputs(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/multimodal/processing/dummy_inputs.py", line 82, in get_dummy_processor_inputs
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     dummy_text = self.get_dummy_text(mm_counts)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/model_executor/models/gemma4_mm.py", line 362, in get_dummy_text
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     processor = self.info.get_hf_processor()
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/model_executor/models/gemma4_mm.py", line 172, in get_hf_processor
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     return self.ctx.get_hf_processor(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/multimodal/processing/context.py", line 204, in get_hf_processor
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     return cached_processor_from_config(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/processor.py", line 355, in cached_processor_from_config
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     return cached_get_processor_without_dynamic_kwargs(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/processor.py", line 312, in cached_get_processor_without_dynamic_kwargs
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     processor = cached_get_processor(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/processor.py", line 198, in get_processor
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     processor = processor_cls.from_pretrained(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/transformers/processing_utils.py", line 1421, in from_pretrained
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     args = cls._get_arguments_from_pretrained(pretrained_model_name_or_path, processor_dict, **kwargs)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/transformers/processing_utils.py", line 1550, in _get_arguments_from_pretrained
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     sub_processor = auto_processor_class.from_pretrained(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/transformers/models/auto/feature_extraction_auto.py", line 319, in from_pretrained
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     config_dict, _ = FeatureExtractionMixin.get_feature_extractor_dict(pretrained_model_name_or_path, **kwargs)
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/transformers/feature_extraction_utils.py", line 529, in get_feature_extractor_dict
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112]     raise OSError(
+(EngineCore pid=1186480) ERROR 04-10 13:57:40 [core.py:1112] OSError: Can't load feature extractor for '/home/dongho.yoon/models/gemma-4-31b-it'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same name. Otherwise, make sure '/home/dongho.yoon/models/gemma-4-31b-it' is the correct path to a directory containing a preprocessor_config.json file
+
+=== Comment #6090309 | 2026-04-10T04:59:19Z ===
+## 31B 누락 파일 보충 필요
+
+모델 로딩(58.9GB)은 성공! `preprocessor_config.json`이 없어서 멀티모달 프로세서 초기화 실패.
+wget 다운로드 시 빠진 메타파일입니다.
+
+```bash
+# 31B 디렉토리에 뭐가 있는지 확인
+ls -la ~/models/gemma-4-31b-it/
+
+# 누락된 파일 다운로드 (프록시 경유)
+cd ~/models/gemma-4-31b-it/
+
+# preprocessor_config.json
+wget -c "https://huggingface.co/google/gemma-4-31b-it/resolve/main/preprocessor_config.json"
+
+# 혹시 다른 메타파일도 없을 수 있음 — 한번에 확인
+for f in preprocessor_config.json processor_config.json chat_template.json special_tokens_map.json; do
+  if [ ! -f "$f" ]; then
+    echo "누락: $f — 다운로드 중..."
+    wget -c "https://huggingface.co/google/gemma-4-31b-it/resolve/main/$f" 2>/dev/null || echo "  $f 없는 파일 (무시)"
+  else
+    echo "있음: $f"
+  fi
+done
+
+# E4B 디렉토리와 비교 (E4B는 정상 동작했으니 참고)
+echo "=== E4B 파일 목록 ==="
+ls ~/models/gemma-4-E4B-it/*.json
+
+echo "=== 31B 파일 목록 ==="
+ls ~/models/gemma-4-31b-it/*.json
+```
+
+다운로드 후 다시 서빙:
+```bash
+source ~/gemma4venv/bin/activate
+
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-31b-it \
+  --served-model-name gemma-4-31b-it \
+  --port 8000 \
+  --gpu-memory-utilization 0.85 \
+  --max-model-len 32768 \
+  --tool-call-parser gemma4 \
+  --dtype bfloat16 \
+  --trust-remote-code &
+```
+
+**알려주실 것:** E4B vs 31B json 파일 목록 비교 결과
+
+=== Comment #6090316 | 2026-04-10T05:04:47Z ===
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/project/101_vllm_setup$ ls -la ~/models/gemma-4-31b-it/
+total 61111984
+drwxrwxr-x 2 dongho.yoon dongho.yoon        4096  4월  9 18:08 .
+drwxrwxr-x 7 dongho.yoon dongho.yoon        4096  4월 10 10:53 ..
+-rw-rw-r-- 1 dongho.yoon dongho.yoon        4621  4월  9 17:31 config.json
+-rw-rw-r-- 1 dongho.yoon dongho.yoon         208  4월  9 17:32 generation_config.json
+-rw-rw-r-- 1 dongho.yoon dongho.yoon 49784788364  4월  9 18:00 model-00001-of-00002.safetensors
+-rw-rw-r-- 1 dongho.yoon dongho.yoon 12761549884  4월  9 18:08 model-00002-of-00002.safetensors
+-rw-rw-r-- 1 dongho.yoon dongho.yoon      120246  4월  9 18:08 model.safetensors.index.json
+-rw-rw-r-- 1 dongho.yoon dongho.yoon        2068  4월  9 18:08 tokenizer_config.json
+-rw-rw-r-- 1 dongho.yoon dongho.yoon    32169626  4월  9 18:08 tokenizer.json
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/project/101_vllm_setup$ cd ~/models/gemma-4-31b-it/
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models/gemma-4-31b-it$ 
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models/gemma-4-31b-it$ wget -c "https://huggingface.co/google/gemma-4-31b-it/resolve/main/preprocessor_config.json"
+--2026-04-10 14:01:34--  https://huggingface.co/google/gemma-4-31b-it/resolve/main/preprocessor_config.json
+Connecting to 168.219.61.252:8080... connected.
+Proxy request sent, awaiting response... 307 Temporary Redirect
+Location: /google/gemma-4-31B-it/resolve/main/preprocessor_config.json [following]
+--2026-04-10 14:01:34--  https://huggingface.co/google/gemma-4-31B-it/resolve/main/preprocessor_config.json
+Reusing existing connection to huggingface.co:443.
+Proxy request sent, awaiting response... 404 Not Found
+2026-04-10 14:01:34 ERROR 404: Not Found.
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models/gemma-4-31b-it$ 
+
+
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ # 혹시 다른 메타파일도 없을 수 있음 — 한번에 확인
+for f in preprocessor_config.json processor_config.json chat_template.json special_tokens_map.json; do
+  if [ ! -f "$f" ]; then
+    echo "누락: $f — 다운로드 중..."
+    wget -c "https://huggingface.co/google/gemma-4-31b-it/resolve/main/$f" 2>/dev/null || echo "  $f 없는 파일 (무시)"
+  else
+    echo "있음: $f"
+  fi
+done
+누락: preprocessor_config.json — 다운로드 중...
+  preprocessor_config.json 없는 파일 (무시)
+누락: processor_config.json — 다운로드 중...
+누락: chat_template.json — 다운로드 중...
+  chat_template.json 없는 파일 (무시)
+누락: special_tokens_map.json — 다운로드 중...
+  special_tokens_map.json 없는 파일 (무시)
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ # E4B 디렉토리와 비교 (E4B는 정상 동작했으니 참고)
+echo "=== E4B 파일 목록 ==="
+ls ~/models/gemma-4-E4B-it/*.json
+
+echo "=== 31B 파일 목록 ==="
+ls ~/models/gemma-4-31b-it/*.json
+=== E4B 파일 목록 ===
+/home/dongho.yoon/models/gemma-4-E4B-it/config.json  /home/dongho.yoon/models/gemma-4-E4B-it/generation_config.json  /home/dongho.yoon/models/gemma-4-E4B-it/processor_config.json  /home/dongho.yoon/models/gemma-4-E4B-it/tokenizer_config.json  /home/dongho.yoon/models/gemma-4-E4B-it/tokenizer.json
+=== 31B 파일 목록 ===
+/home/dongho.yoon/models/gemma-4-31b-it/config.json  /home/dongho.yoon/models/gemma-4-31b-it/generation_config.json  /home/dongho.yoon/models/gemma-4-31b-it/model.safetensors.index.json  /home/dongho.yoon/models/gemma-4-31b-it/tokenizer_config.json  /home/dongho.yoon/models/gemma-4-31b-it/tokenizer.json
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ source ~/gemma4venv/bin/activate
+
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-31b-it \
+  --served-model-name gemma-4-31b-it \
+  --port 8000 \
+  --gpu-memory-utilization 0.85 \
+  --max-model-len 32768 \
+  --tool-call-parser gemma4 \
+  --dtype bfloat16 \
+  --trust-remote-code &
+[1] 1189845
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ (APIServer pid=1189845) INFO 04-10 14:03:01 [utils.py:299]
+
+
+(EngineCore pid=1190138) ERROR 04-10 14:03:27 [core.py:1112] EngineCore failed to start.
+(EngineCore pid=1190138) ERROR 04-10 14:03:27 [core.py:1112] Traceback (most recent call last):
+(EngineCore pid=1190138) ERROR 04-10 14:03:27 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 1086, in run_engine_core
+(EngineCore pid=1190138) ERROR 04-10 14:03:27 [core.py:1112]     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=1190138) ERROR 04-10 14:03:27 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=1190138) ERROR 04-10 14:03:27 [core.py:1112]     return func(*args, **kwargs)
+(EngineCore pid=1190138) ERROR 04-10 14:03:27 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 850, in __init__
+
+
+=== Comment #6090317 | 2026-04-10T05:05:54Z ===
+## processor_config.json이 잘못된 경로에 받아짐
+
+for 루프가 `~/models/`에서 실행돼서 파일이 31b 폴더 밖에 받아짐.
+
+```bash
+# 잘못 받아진 파일 확인
+ls ~/models/processor_config.json
+
+# 있으면 31b 폴더로 이동
+mv ~/models/processor_config.json ~/models/gemma-4-31b-it/
+
+# E4B에서 없는 파일 복사 (preprocessor 관련)
+ls ~/models/gemma-4-E4B-it/
+ls ~/models/gemma-4-31b-it/
+
+# E4B에 있는데 31B에 없는 파일 전부 복사
+for f in $(ls ~/models/gemma-4-E4B-it/*.json); do
+  fname=$(basename "$f")
+  if [ ! -f ~/models/gemma-4-31b-it/"$fname" ]; then
+    echo "복사: $fname"
+    cp "$f" ~/models/gemma-4-31b-it/
+  fi
+done
+
+# 최종 확인
+ls ~/models/gemma-4-31b-it/*.json
+
+# 다시 서빙
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-31b-it \
+  --served-model-name gemma-4-31b-it \
+  --port 8000 \
+  --gpu-memory-utilization 0.85 \
+  --max-model-len 32768 \
+  --tool-call-parser gemma4 \
+  --dtype bfloat16 \
+  --trust-remote-code &
+```
+
+=== Comment #6090321 | 2026-04-10T05:11:41Z ===
+## 31B 서빙 확인 + Ollama 태그
+
+### 31B 테스트 (다른 터미널에서)
+
+```bash
+# 모델 목록
+curl http://localhost:8000/v1/models
+
+# 간단 채팅
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"1+1은?"}],"temperature":0.0,"max_tokens":64}'
+
+# tool call 테스트 (시지푸스 핵심)
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+
+# GPU 확인
+nvidia-smi
+```
+
+### Ollama 태그: e2b vs e2b-it
+
+Ollama는 기본 태그가 이미 IT(instruction-tuned) 버전입니다.
+- `gemma4:e2b` = instruction-tuned (이미 맞음)
+- Ollama에서 base 모델은 별도 태그 (예: `gemma4:e2b-base`)
+
+지금 받고 있는 `gemma4:e2b`가 맞습니다. 확인:
+```bash
+# 다운 완료됐으면 확인
+ollama list
+ollama show gemma4:e2b
+```
+
+=== Comment #6090323 | 2026-04-10T05:14:01Z ===
+## gemma4:e2b IT 확인 + 테스트
+
+```bash
+# 모델 상세 정보
+ollama show gemma4:e2b
+
+# Modelfile (system prompt 있으면 IT)
+ollama show gemma4:e2b --modelfile
+
+# IT 판별 테스트 (IT면 지시를 따르고, base면 문장 이어쓰기만 함)
+ollama run gemma4:e2b "다음 지시를 정확히 따르세요: 1부터 5까지 숫자만 출력."
+
+# API 모델 목록
+curl http://localhost:11434/v1/models
+
+# tool call 테스트 (핵심)
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:e2b","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+```
+
+**알려주실 것:** ollama show 결과 + 지시 테스트 + tool call 응답
+
+=== Comment #6090325 | 2026-04-10T05:16:28Z ===
+dongho.yoon@user-GNRD8-2L2T:~/models$ curl http://localhost:8000/v1/models
+{"object":"list","data":[{"id":"gemma-4-31b-it","object":"model","created":1775798135,"owned_by":"vllm","root":"/home/dongho.yoon/models/gemma-4-31b-it","parent":null,"max_model_len":32768,"permission":[{"id":"modelperm-bd91fbfbed077291","object":"model_permission","created":1775798135,"allow_create_engine":false,"allow_sampling":true,"allow_logprobs":true,"allow_search_indices":false,"allow_view":true,"allow_fine_tuning":false,"organization":"*","group":null,"is_blocking":false}]}]}dongho.yoon@user-GNRD8-2L2T:~/models$ curl http://localhost:80curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"1+1은?"}],"temperature":0.0,"max_tokens":64}'
+{"error":{"message":"As of transformers v4.44, default chat template is no longer allowed, so you must provide a chat template if the tokenizer does not define one.","type":"BadRequestError","param":null,"code":400}}dongho.yoon@user-GNRD8-2L2T:~/models$ 
+dongho.yoon@user-GNRD8-2L2T:~/models$ # tool call 테스트 (시지푸스 핵심)
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+{"error":{"message":"\"auto\" tool choice requires --enable-auto-tool-choice and --tool-call-parser to be set","type":"BadRequestError","param":null,"code":400}}dongho.yoon@user-GNRD8-2L2T:~/models$ 
+
+=== Comment #6090326 | 2026-04-10T05:19:17Z ===
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama show gemma4:e2b
+  Model
+    architecture        gemma4
+    parameters          5.1B
+    context length      131072
+    embedding length    1536
+    quantization        Q4_K_M
+    requires            0.20.0
+
+  Capabilities
+    completion
+    vision
+    audio
+    tools
+    thinking
+
+  Parameters
+    temperature    1
+    top_k          64
+    top_p          0.95
+
+  License
+    Apache License
+    Version 2.0, January 2004
+    ...
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama show gemma4:e2b --modelfile
+# Modelfile generated by "ollama show"
+# To build a new Modelfile based on this, replace FROM with:
+# FROM gemma4:e2b
+
+FROM /usr/share/ollama/.ollama/models/blobs/sha256-4e30e2665218745ef463f722c0bf86be0cab6ee676320f1cfadf91e989107448
+TEMPLATE {{ .Prompt }}
+RENDERER gemma4
+PARSER gemma4
+PARAMETER temperature 1
+PARAMETER top_k 64
+PARAMETER top_p 0.95
+LICENSE """                                Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License."""
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama run gemma4:e2b "다음 지시를 정확히 따르세요: 1부터 5까지 숫자만 출력."
+Thinking...
+Thinking Process:
+
+1.  **Analyze the Request:** The user asked for a specific instruction: "다음 지시를 정확히 따르세요: 1부터 5까지 숫자만 출력."
+(Follow the instruction exactly: Output only numbers from 1 to 5.)
+2.  **Determine the Output Format:** The requirement is to output only the numbers 1, 2, 3, 4, and 5.
+3.  **Generate the Output:** 1, 2, 3, 4, 5.
+4.  **Final Review:** Does the output meet the constraint (only numbers 1 through 5)? Yes. (The instruction asks for the
+numbers, typically implying a list or sequence.)
+...done thinking.
+
+1, 2, 3, 4, 5
+
+=== Comment #6090328 | 2026-04-10T05:20:39Z ===
+## 결과 분석
+
+### Ollama E2B ✅ 완벽
+- IT 버전 맞음 (thinking + 지시 정확히 따름)
+- **tools 지원** — 시지푸스 OK
+- 5.1B, Q4_K_M, 131K context
+
+Ollama E2B tool call 테스트도 해봅시다:
+```bash
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:e2b","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+```
+
+### vLLM 31B — 에러 2개 수정 필요
+
+에러1: chat_template 누락, 에러2: --enable-auto-tool-choice 누락.
+31B를 중지하고 다시 시작해야 합니다.
+
+```bash
+# 현재 31B vLLM 프로세스 종료
+ps aux | grep vllm | grep -v grep
+kill <31B_PID>
+
+# E4B에서 chat_template 복사 (31B에 없는 파일)
+cat ~/models/gemma-4-E4B-it/tokenizer_config.json | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print('chat_template' in d)
+"
+
+# E4B tokenizer_config에 chat_template이 있으면 31B에 복사
+cp ~/models/gemma-4-E4B-it/tokenizer_config.json ~/models/gemma-4-31b-it/tokenizer_config.json
+
+# 다시 서빙 (--enable-auto-tool-choice 추가!)
+source ~/gemma4venv/bin/activate
+
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-31b-it \
+  --served-model-name gemma-4-31b-it \
+  --port 8000 \
+  --gpu-memory-utilization 0.85 \
+  --max-model-len 32768 \
+  --enable-auto-tool-choice \
+  --tool-call-parser gemma4 \
+  --dtype bfloat16 \
+  --trust-remote-code &
+```
+
+> ⚠️ tokenizer_config.json 복사 전에 31B 원본 백업:
+> ```bash
+> cp ~/models/gemma-4-31b-it/tokenizer_config.json ~/models/gemma-4-31b-it/tokenizer_config.json.bak
+> ```
+
+**알려주실 것:**
+1. Ollama tool call 결과
+2. 31B 재시작 후 채팅+tool call 결과
+
+=== Comment #6090340 | 2026-04-10T05:29:29Z ===
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama run gemma4:e4b "다음 지시를 정확히 따르세요: 1부터 5까지 숫자만 출력."
+1
+2
+3
+4
+5
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ curl http://localhost:11434/v1/models
+{"object":"list","data":[{"id":"gemma4:e4b","object":"model","created":1775797201,"owned_by":"library"},{"id":"gemma4:e2b","object":"model","created":1775796524,"owned_by":"library"},{"id":"glm-4.7-flash:latest","object":"model","created":1773646870,"owned_by":"library"}]}
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:e2b","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+{"id":"chatcmpl-165","object":"chat.completion","created":1775798745,"model":"gemma4:e2b","system_fingerprint":"fp_ollama","choices":[{"index":0,"message":{"role":"assistant","content":"","reasoning":"1.  **Analyze the Request:** The user is asking \"What is the weather in Seoul?\"\n\n2.  **Examine Available Tools:** The provided tool definition is `get_weather(city: STRING)`. This tool is designed to retrieve weather information for a specified city.\n\n3.  **Determine Tool Applicability:** The request directly maps to the functionality of the `get_weather` tool.\n\n4.  **Identify Necessary Arguments:** The `get_weather` function requires a `city` argument. The user specified \"Seoul\".\n\n5.  **Construct the Tool Call:** Call `get_weather` with `city=\"Seoul\"`.\n\n6.  **Format the Output:** Generate the JSON tool call.","tool_calls":[{"id":"call_a1bzzp68","index":0,"type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Seoul\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":61,"completion_tokens":170,"total_tokens":231}}
+
+
+
+
+(APIServer pid=1192530) INFO:     127.0.0.1:42300 - "POST /v1/chat/completions HTTP/1.1" 400 Bad Request
+^C
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ # E4B에서 chat_template 복사 (31B에 없는 파일)
+cat ~/models/gemma-4-E4B-it/tokenizer_config.json | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print('chat_template' in d)
+"
+
+# E4B tokenizer_config에 chat_template이 있으면 31B에 복사
+cp ~/models/gemma-4-E4B-it/tokenizer_config.json ~/models/gemma-4-31b-it/tokenizer_config.json
+False
+
+
+_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=1205491) INFO 04-10 14:28:54 [parallel_state.py:1400] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://10.88.22.29:32781 backend=nccl
+(EngineCore pid=1205491) INFO 04-10 14:28:54 [parallel_state.py:1713] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112] EngineCore failed to start.
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112] Traceback (most recent call last):
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 1086, in run_engine_core
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     return func(*args, **kwargs)
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 850, in __init__
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     super().__init__(
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 116, in __init__
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     self.model_executor = executor_class(vllm_config)
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     return func(*args, **kwargs)
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/executor/abstract.py", line 109, in __init__
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     self._init_executor()
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/executor/uniproc_executor.py", line 47, in _init_executor
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     self.driver_worker.init_device()
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/worker/worker_base.py", line 312, in init_device
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     self.worker.init_device()  # type: ignore
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     return func(*args, **kwargs)
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/worker/gpu_worker.py", line 283, in init_device
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     self.requested_memory = request_memory(init_snapshot, self.cache_config)
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]   File "/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/v1/worker/utils.py", line 413, in request_memory
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112]     raise ValueError(
+(EngineCore pid=1205491) ERROR 04-10 14:28:55 [core.py:1112] ValueError: Free memory on device cuda:0 (11.29/94.97 GiB) on startup is less than desired GPU memory utilization (0.85, 80.72 GiB). Decrease GPU memory utilization or reduce GPU memory used by other processes.
+(EngineCore pid=1205491) Process EngineCore:
+
+=== Comment #6090353 | 2026-04-10T05:38:27Z ===
+## 상황 정리 + 31B 수정
+
+### Ollama ✅ E2B tool call 성공, E4B도 준비 완료!
+
+### vLLM 31B — 문제 2개
+
+**문제1: GPU0 메모리** — 이전 프로세스 안 죽음 (11GB만 남음)
+**문제2: chat_template** — E4B에도 없어서 복사 의미 없음. 다른 방법 필요.
+
+```bash
+# 1. tokenizer_config.json 원본 복구
+cp ~/models/gemma-4-31b-it/tokenizer_config.json.bak ~/models/gemma-4-31b-it/tokenizer_config.json
+
+# 2. GPU0 점유 프로세스 전부 죽이기
+ps aux | grep -E "vllm|vLLM" | grep -v grep
+# 나오는 PID 전부 kill
+kill -9 <PID1> <PID2> ...
+
+# 3. GPU 비워졌는지 확인
+nvidia-smi
+
+# 4. 31B용 chat_template 직접 다운로드
+cd ~/models/gemma-4-31b-it/
+wget -c "https://huggingface.co/google/gemma-4-31b-it/resolve/main/chat_template.json" || echo "없으면 무시"
+
+# 5. vLLM --chat-template 옵션으로 직접 지정해서 시작
+source ~/gemma4venv/bin/activate
+
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-31b-it \
+  --served-model-name gemma-4-31b-it \
+  --port 8000 \
+  --gpu-memory-utilization 0.85 \
+  --max-model-len 32768 \
+  --enable-auto-tool-choice \
+  --tool-call-parser gemma4 \
+  --chat-template examples/template_gemma.jinja \
+  --dtype bfloat16 \
+  --trust-remote-code &
+```
+
+> `--chat-template` 경로가 틀릴 수 있습니다. 안되면:
+> ```bash
+> # vLLM에 내장된 gemma 템플릿 찾기
+> find ~/gemma4venv -name "*gemma*jinja*" -o -name "*gemma*template*" 2>/dev/null
+> python -c "from vllm.entrypoints.chat_utils import load_chat_template; help(load_chat_template)"
+> ```
+
+**또는 전략 변경:** 31B도 Ollama로 가는 방법
+```bash
+# 31B Ollama 다운 (시간 오래 걸림)
+ollama pull gemma4:31b
+```
+Ollama가 E2B/E4B 완벽하니, 31B도 Ollama로 통일하면 관리가 훨씬 편합니다.
+
+**회장님 선택:**
+A) vLLM 31B 계속 수정
+B) 31B도 Ollama로 통일 (pull 시간 필요)
+
+=== Comment #6090355 | 2026-04-10T05:42:43Z ===
+## Ollama 다운로드 + vLLM 31B 수정
+
+### Ollama 백그라운드 다운로드 (터미널 하나에서)
+
+```bash
+# 31B 다운로드 (백그라운드)
+nohup ollama pull gemma4:31b > /tmp/ollama_pull_31b.log 2>&1 &
+echo "31B PID: $!"
+
+# 26B 다운로드 (31B 끝나고 자동으로)
+# → 동시에 걸면 충돌할 수 있어서 순차 실행
+nohup bash -c "ollama pull gemma4:31b && ollama pull gemma4:27b" > /tmp/ollama_pull.log 2>&1 &
+echo "PID: $!"
+
+# 진행 확인
+tail -f /tmp/ollama_pull.log
+```
+
+> 27b 태그가 없으면 `gemma4:26b` 또는 `gemma4:27b-a4b` 시도.
+> 확인: `Ctrl+C`로 tail 종료해도 다운로드는 계속됨.
+
+---
+
+### vLLM 31B 수정 (다른 터미널에서)
+
+```bash
+# 1. tokenizer_config 원본 복구
+cp ~/models/gemma-4-31b-it/tokenizer_config.json.bak ~/models/gemma-4-31b-it/tokenizer_config.json
+
+# 2. 모든 vLLM 프로세스 확인 + 종료
+ps aux | grep -E "vllm|vLLM" | grep -v grep
+
+# 나오는 PID 전부 kill (여러개면 공백으로 나열)
+kill -9 $(ps aux | grep -E "vllm|vLLM" | grep -v grep | awk "{print \$2}")
+
+# 3. GPU 비워졌는지 확인
+nvidia-smi
+
+# 4. gemma4 chat template 찾기
+find ~/gemma4venv -path "*gemma*" -name "*.jinja" 2>/dev/null
+find ~/gemma4venv -path "*template*gemma*" 2>/dev/null
+find ~/gemma4venv -path "*chat_template*" -name "*.jinja" 2>/dev/null | head -20
+
+# 5. 결과 알려주세요 — 템플릿 경로 확인 후 서빙 명령어 드림
+```
+
+=== Comment #6090357 | 2026-04-10T05:45:59Z ===
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ ps aux | grep -E "vllm|vLLM" | grep -v grep
+dongho.+ 1192530  2.5  0.2 42727300 2478500 pts/10 Sl 14:07   0:57 python -m vllm.entrypoints.openai.api_server --model /home/dongho.yoon/models/gemma-4-31b-it --served-model-name gemma-4-31b-it --port 8000 --gpu-memory-utilization 0.85 --max-model-len 32768 --tool-call-parser gemma4 --dtype bfloat16 --trust-remote-code
+
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ nohup ollama pull gemma4:31b > /tmp/ollama_pull_31b.log 2>&1 &
+echo "31B PID: $!"
+[1] 1215580
+31B PID: 1215580
+
+=== Comment #6090376 | 2026-04-10T06:05:23Z ===
+dongho.yoon@user-GNRD8-2L2T:~/models$ kill -9 1192530
+dongho.yoon@user-GNRD8-2L2T:~/models$
+dongho.yoon@user-GNRD8-2L2T:~/models$ ps aux | grep -E 'vllm|vLLM" | grep -v grep
+>
+> exit
+> ^C
+dongho.yoon@user-GNRD8-2L2T:~/models$ ps aux | grep -E "vllm|vLLM" | grep -v grep
+dongho.yoon@user-GNRD8-2L2T:~/models$
+dongho.yoon@user-GNRD8-2L2T:~/models$
+dongho.yoon@user-GNRD8-2L2T:~/models$ ps aux | grep -E "vllm|vLLM" | grep -v grep
+dongho.yoon@user-GNRD8-2L2T:~/models$
+dongho.yoon@user-GNRD8-2L2T:~/models$
+dongho.yoon@user-GNRD8-2L2T:~/models$ nvidia-smi
+Fri Apr 10 15:04:49 2026
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA RTX PRO 6000 Blac...    Off |   00000000:46:00.0 Off |                  Off |
+| 30%   32C    P8             23W /  600W |   85133MiB /  97887MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA RTX PRO 6000 Blac...    Off |   00000000:60:00.0 Off |                  Off |
+| 30%   30C    P8             22W /  600W |      15MiB /  97887MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2710      G   /usr/lib/xorg/Xorg                      266MiB |
+|    0   N/A  N/A            2910      G   /usr/bin/gnome-shell                     24MiB |
+|    0   N/A  N/A         1192818      C   VLLM::EngineCore                      84782MiB |
+|    1   N/A  N/A            2710      G   /usr/lib/xorg/Xorg                        4MiB |
++-----------------------------------------------------------------------------------------+
+dongho.yoon@user-GNRD8-2L2T:~/models$
+
+=== Comment #6090383 | 2026-04-10T06:10:09Z ===
+## chat template 찾기 + 31B 준비
+
+```bash
+# tokenizer_config 원본 복구
+cp ~/models/gemma-4-31b-it/tokenizer_config.json.bak ~/models/gemma-4-31b-it/tokenizer_config.json
+
+# gemma4 chat template 찾기
+find ~/gemma4venv -name "*.jinja" 2>/dev/null | grep -i gemma
+
+# vLLM 예제 템플릿에서 찾기
+find ~/gemma4venv -path "*/examples/*" -name "*.jinja" 2>/dev/null
+
+# E4B vs 31B tokenizer_config 키 비교
+echo "=== E4B keys ==="
+cat ~/models/gemma-4-E4B-it/tokenizer_config.json | python3 -c "import json,sys; d=json.load(sys.stdin); print(list(d.keys()))"
+
+echo "=== 31B keys ==="
+cat ~/models/gemma-4-31b-it/tokenizer_config.json | python3 -c "import json,sys; d=json.load(sys.stdin); print(list(d.keys()))"
+
+# chat_template 포함된 파일 찾기
+grep -l "chat_template" ~/models/gemma-4-E4B-it/*
+grep -l "chat_template" ~/models/gemma-4-31b-it/*
+```
+
+결과 전부 알려주세요 — 템플릿 경로 확인 후 서빙 명령어 드림
+
+=== Comment #6090384 | 2026-04-10T06:11:36Z ===
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ # tokenizer_config 원본 복구
+cp ~/models/gemma-4-31b-it/tokenizer_config.json.bak ~/models/gemma-4-31b-it/tokenizer_config.json
+
+# gemma4 chat template 찾기
+find ~/gemma4venv -name "*.jinja" 2>/dev/null | grep -i gemma
+
+# vLLM 예제 템플릿에서 찾기
+find ~/gemma4venv -path "*/examples/*" -name "*.jinja" 2>/dev/null
+
+# E4B vs 31B tokenizer_config 키 비교
+echo "=== E4B keys ==="
+cat ~/models/gemma-4-E4B-it/tokenizer_config.json | python3 -c "import json,sys; d=json.load(sys.stdin); print(list(d.keys()))"
+
+echo "=== 31B keys ==="
+cat ~/models/gemma-4-31b-it/tokenizer_config.json | python3 -c "import json,sys; d=json.load(sys.stdin); print(list(d.keys()))"
+
+# chat_template 포함된 파일 찾기
+grep -l "chat_template" ~/models/gemma-4-E4B-it/*
+grep -l "chat_template" ~/models/gemma-4-31b-it/*
+cp: cannot stat '/home/dongho.yoon/models/gemma-4-31b-it/tokenizer_config.json.bak': No such file or directory
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/mistral_common/guidance/data/think_grammar.lark.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/mistral_common/guidance/data/plain_text_think_grammar.lark.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/mistral_common/guidance/data/base_grammar.lark.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/templates/triton_epilogue_scaled_mm.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/templates/triton_mm_grouped.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/templates/triton_persistent_tma_mm.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/templates/triton_bmm.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/templates/triton_main_loop_scaled_mm.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/templates/triton_mm_rocm.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/templates/cutedsl_mm_grouped.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/templates/triton_mm.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/templates/triton_blackwell_ws_persistent_device_tma_mm.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/flex/templates/utilities.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/flex/templates/common.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/flex/templates/flash_attention.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/flex/templates/flex_backwards.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/flex/templates/flex_attention.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/flex/templates/flex_decode.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/torch/_inductor/kernel/flex/templates/flash_attention_backward.py.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/chat_templates/template_minicpmv45.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/chat_templates/template_deepseek_vl2.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/chat_templates/template_chatml.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/chat_templates/template_deepseek_ocr.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/chat_templates/template_blip2.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/chat_templates/template_kimi_audio.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/chat_templates/template_fuyu.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/chat_templates/template_basic.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/bf16_gemm_cutlass.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_prefill_paged_sm90_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_prefill_ragged_sm90_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/gdn_prefill_sm90_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_prefill_paged_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/mxfp8_gemm_cutlass.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_attention_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/group_gemm_fp8_groupwise_sm100_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/selective_state_update_dtype_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/fp4_gemm_cutlass_sm103.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/pod_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/fp4_gemm_cutlass_sm120.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/single_prefill_sm90_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_decode_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/fp4_gemm_cutlass.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/single_decode_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/fmha_v2/templates/kernel.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/fmha_v2/templates/kernel_hopper_ws.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/fmha_v2/templates/kernel_hopper.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/fmha_v2/templates/fa_kernel.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/group_gemm_fp8_groupwise_sm120_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_prefill_ragged_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_mla_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_prefill_sm90_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/group_gemm_sm90_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_prefill_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/tgv_gemm.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/group_gemm_mxfp4_groupwise_sm100_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/single_decode_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/selective_state_update_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/single_prefill_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/fp8_gemm_cutlass.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/single_prefill_sm90_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_pod_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_attention_paged_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_decode_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_pod_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/pod_customize_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_prefill_fp8_paged_sm90_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/gemm_groupwise_sm120_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_prefill_fp8_ragged_sm90_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/single_prefill_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/gemm_groupwise_sm100_kernel_inst.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/batch_decode_mla_config.jinja
+/home/dongho.yoon/gemma4venv/lib/python3.10/site-packages/flashinfer/data/csrc/single_prefill_fp8_sm90_kernel_inst.jinja
+=== E4B keys ===
+['audio_token', 'backend', 'boa_token', 'boi_token', 'bos_token', 'eoa_token', 'eoc_token', 'eoi_token', 'eos_token', 'eot_token', 'escape_token', 'etc_token', 'etd_token', 'etr_token', 'extra_special_tokens', 'image_token', 'mask_token', 'model_max_length', 'pad_token', 'padding_side', 'processor_class', 'response_schema', 'soc_token', 'sot_token', 'stc_token', 'std_token', 'str_token', 'think_token', 'tokenizer_class', 'unk_token']
+=== 31B keys ===
+['audio_token', 'backend', 'boa_token', 'boi_token', 'bos_token', 'eoa_token', 'eoc_token', 'eoi_token', 'eos_token', 'eot_token', 'escape_token', 'etc_token', 'etd_token', 'etr_token', 'extra_special_tokens', 'image_token', 'mask_token', 'model_max_length', 'pad_token', 'padding_side', 'processor_class', 'response_schema', 'soc_token', 'sot_token', 'stc_token', 'std_token', 'str_token', 'think_token', 'tokenizer_class', 'unk_token']
+/home/dongho.yoon/models/gemma-4-E4B-it/README.md
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+
+=== Comment #6090390 | 2026-04-10T06:13:57Z ===
+## 31B 재시작 — chat template + tool choice 수정
+
+이전 서버는 시작 성공했고, 에러는 API 호출 시 발생한 것.
+GPU 비워졌으니 바로 재시작합니다.
+
+```bash
+# GPU 비워졌는지 확인
+nvidia-smi
+
+# processor_config.json이 31B 폴더에 있는지 확인
+ls ~/models/gemma-4-31b-it/processor_config.json
+
+# 없으면 E4B에서 복사
+cp ~/models/gemma-4-E4B-it/processor_config.json ~/models/gemma-4-31b-it/ 2>/dev/null
+
+# 31B 서빙 (chat-template + enable-auto-tool-choice 추가)
+source ~/gemma4venv/bin/activate
+
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+  --model ~/models/gemma-4-31b-it \
+  --served-model-name gemma-4-31b-it \
+  --port 8000 \
+  --gpu-memory-utilization 0.85 \
+  --max-model-len 32768 \
+  --enable-auto-tool-choice \
+  --tool-call-parser gemma4 \
+  --chat-template ~/gemma4venv/lib/python3.10/site-packages/vllm/transformers_utils/chat_templates/template_chatml.jinja \
+  --dtype bfloat16 \
+  --trust-remote-code &
+```
+
+> "Uvicorn running" 뜨면 테스트:
+> ```bash
+> # 채팅
+> curl http://localhost:8000/v1/chat/completions \
+>   -H "Content-Type: application/json" \
+>   -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"1+1은?"}],"temperature":0.0,"max_tokens":64}'
+>
+> # tool call
+> curl http://localhost:8000/v1/chat/completions \
+>   -H "Content-Type: application/json" \
+>   -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+> ```
+
+=== Comment #6090393 | 2026-04-10T06:19:24Z ===
+(APIServer pid=1221367) INFO:     Started server process [1221367]
+(APIServer pid=1221367) INFO:     Waiting for application startup.
+(APIServer pid=1221367) INFO:     Application startup complete.
+
+=== Comment #6090409 | 2026-04-10T06:24:16Z ===
+## 31B API 테스트 + Ollama 26B 다운로드
+
+### Ollama 상태 확인 + 26B 다운로드
+
+```bash
+# 31B 다운 완료 확인
+ollama list
+
+# 26B 다운로드 (태그 확인하면서)
+ollama pull gemma4:27b
+
+# 안되면 이것들 시도
+# ollama pull gemma4:26b
+# ollama pull gemma4:27b-a4b
+```
+
+### 31B vLLM 테스트 (다른 터미널에서)
+
+```bash
+# 채팅 테스트
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"1+1은?"}],"temperature":0.0,"max_tokens":64}'
+
+# tool call 테스트
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+
+# 멈춤 체크 — 연속 3회
+for i in 1 2 3; do
+  echo "--- Request $i ---"
+  time curl -s http://localhost:8000/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"Say OK"}],"temperature":0.0,"max_tokens":16}' | python3 -c "import sys,json; r=json.load(sys.stdin); print(r.get('choices',[{}])[0].get('message',{}).get('content','ERROR')[:100])"
+done
+
+# GPU 확인
+nvidia-smi
+```
+
+**알려주실 것:**
+1. ollama list 결과
+2. 31B 채팅 응답
+3. 31B tool call 응답 (tool_calls 필드 있는지)
+4. 연속 요청 소요 시간 + 멈춤 여부
+
+=== Comment #6090422 | 2026-04-10T06:36:18Z ===
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$
+[1]+  Done                    nohup ollama pull gemma4:31b > /tmp/ollama_pull_31b.log 2>&1
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama list
+NAME                    ID              SIZE      MODIFIED
+gemma4:31b              6316f0629137    19 GB     22 minutes ago
+gemma4:e4b              c6eb396dbd59    9.6 GB    About an hour ago
+gemma4:e2b              7fbdbf8f5e45    7.2 GB    2 hours ago
+glm-4.7-flash:latest    e060d7f63f19    19 GB     3 weeks ago
+
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama pull gemma4:27b
+pulling manifest
+Error: pull model manifest: file does not exist
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama pull gemma4:26b-a4b-it
+pulling manifest
+Error: pull model manifest: file does not exist
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/.ollama$ deactivate
+dongho.yoon@user-GNRD8-2L2T:~/.ollama$
+dongho.yoon@user-GNRD8-2L2T:~/.ollama$
+dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama pull gemma4:27b
+pulling manifest
+Error: pull model manifest: file does not exist
+dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama list
+NAME                    ID              SIZE      MODIFIED
+gemma4:31b              6316f0629137    19 GB     29 minutes ago
+gemma4:e4b              c6eb396dbd59    9.6 GB    2 hours ago
+gemma4:e2b              7fbdbf8f5e45    7.2 GB    2 hours ago
+glm-4.7-flash:latest    e060d7f63f19    19 GB     3 weeks ago
+dongho.yoon@user-GNRD8-2L2T:~/.ollama$
+dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama version
+Error: unknown command "version" for "ollama"
+dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama --version
+ollama version is 0.20.4
+dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama run gemma4:26b
+pulling manifest
+pulling 7121486771cb:   7% ▕███████                                                                                                           ▏ 1.2 GB/ 17 GB   49 MB/s   5m38s
+
+
+
+
+(APIServer pid=1221367) INFO:     Started server process [1221367]
+(APIServer pid=1221367) INFO:     Waiting for application startup.
+(APIServer pid=1221367) INFO:     Application startup complete.
+(APIServer pid=1221367) INFO:     127.0.0.1:47214 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=1221367) INFO 04-10 15:33:39 [loggers.py:259] Engine 000: Avg prompt throughput: 2.7 tokens/s, Avg generation throughput: 6.4 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:33:49 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:33:59 [loggers.py:259] Engine 000: Avg prompt throughput: 2.9 tokens/s, Avg generation throughput: 24.3 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 1.3%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:34:09 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.5 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 2.5%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:34:19 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.4 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 3.6%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:34:29 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.3 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.8%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:34:39 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.3 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.0%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:34:49 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.2 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.1%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:34:59 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.2 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.2%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:35:09 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.3 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.3%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:35:19 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.2 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.5%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:35:29 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.1 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.5%, Prefix cache hit rate: 0.0%
+(APIServer pid=1221367) INFO 04-10 15:35:39 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 24.2 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.7%, Prefix cache hit rate: 0.0%
+
+
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"1+1은?"}],"temperature":0.0,"max_tokens":64}'
+{"id":"chatcmpl-98f14ea0f3109993","object":"chat.completion","created":1775802813,"model":"gemma-4-31b-it","choices":[{"index":0,"message":{"role":"assistant","content":"<|im_end|>\n<|im_end|>\n<|im_end|>\n<|im_end|>\n<|im_end|>\n<|im_end|>\n<|im_end|>\n<|im_end|>\n<|im_end|>\n<","refusal":null,"annotations":null,"audio":null,"function_call":null,"tool_calls":[],"reasoning":null},"logprobs":null,"finish_reason":"length","stop_reason":null,"token_ids":null}],"service_tier":null,"system_fingerprint":null,"usage":{"prompt_tokens":27,"total_tokens":91,"completion_tokens":64,"prompt_tokens_details":null},"prompt_logprobs":null,"prompt_token_ids":null,"kv_transfer_params":null}(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma-4-31b-it","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+
+
+
+Every 2.0s: nvidia-smi                                          user-GNRD8-2L2T: Fri Apr 10 15:35:37 2026
+
+Fri Apr 10 15:35:37 2026
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA RTX PRO 6000 Blac...    Off |   00000000:46:00.0 Off |                  Off |
+| 49%   82C    P1            598W /  600W |   85135MiB /  97887MiB |     99%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA RTX PRO 6000 Blac...    Off |   00000000:60:00.0 Off |                  Off |
+| 30%   30C    P8             21W /  600W |      15MiB /  97887MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2710      G   /usr/lib/xorg/Xorg                      266MiB |
+|    0   N/A  N/A            2910      G   /usr/bin/gnome-shell                     24MiB |
+|    0   N/A  N/A         1221590      C   VLLM::EngineCore                      84784MiB |
+|    1   N/A  N/A            2710      G   /usr/lib/xorg/Xorg                        4MiB |
++-----------------------------------------------------------------------------------------+
+
+=== Comment #6090430 | 2026-04-10T06:41:53Z ===
+## vLLM 중지 + Ollama OmO 셋팅
+
+### 1. vLLM 종료 (GPU 낭비 중)
+
+```bash
+# tool call Ctrl+C로 끊기 (아직 안 했으면)
+
+# vLLM 프로세스 + EngineCore 전부 종료
+kill -9 $(ps aux | grep -E "vllm|vLLM|EngineCore" | grep -v grep | awk '{print $2}')
+
+# GPU 비워졌는지 확인
+nvidia-smi
+```
+
+### 2. Ollama 외부 접속 허용 (윈도우에서 연결하려면)
+
+```bash
+# Ollama가 현재 localhost만 듣고 있을 수 있음
+# 외부 접속 허용 설정
+sudo systemctl edit ollama
+```
+편집기에 추가 (기존 프록시 설정 아래에):
+```
+[Service]
+Environment="OLLAMA_HOST=0.0.0.0"
+```
+저장 후:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart ollama
+
+# 확인 (0.0.0.0:11434로 바인딩되어야 함)
+ss -tlnp | grep 11434
+```
+
+> ⚠️ sudo는 user 계정에서 해야 합니다
+
+### 3. Ollama 31B + E4B 동작 테스트
+
+```bash
+# 31B tool call 테스트
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:31b","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+
+# E4B tool call 테스트
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:e4b","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+
+# 31B 채팅 테스트
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:31b","messages":[{"role":"user","content":"1+1은?"}],"temperature":0.0,"max_tokens":64}'
+```
+
+### 4. 블랙웰 서버 IP 확인
+
+```bash
+hostname -I | awk '{print $1}'
+```
+
+**알려주실 것:**
+1. nvidia-smi (GPU 비워졌는지)
+2. Ollama 31B tool call 응답
+3. 서버 IP (윈도우 opencode.json에 넣을 주소)
+
+=== Comment #6090450 | 2026-04-10T06:51:15Z ===
+
+### Editing /etc/systemd/system/ollama.service.d/override.conf
+### Anything between here and the comment below will become the new contents of the file
+
+[Service]
+Environment="HTTPS_PROXY=http://168.219.61.252:8080"
+Environment="NO_PROXY=127.0.0.1,localhost,10.*.*.*,165.213.*.*,168.219.*.*,202.20.*.*,112.107.220.*,*.samsung.net"
+Environment="OLLAMA_HOST=0.0.0.0"
+
+### Lines below this comment will be discarded
+
+### /etc/systemd/system/ollama.service
+# [Unit]
+# Description=Ollama Service
+# After=network-online.target
+#
+# [Service]
+# ExecStart=/usr/local/bin/ollama serve
+# User=ollama
+# Group=ollama
+# Restart=always
+# RestartSec=3
+# Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
+#
+# [Install]
+# WantedBy=default.target
+
+
+
+user@user-GNRD8-2L2T:~$ sudo systemctl edit ollama
+[sudo] password for user:
+user@user-GNRD8-2L2T:~$
+user@user-GNRD8-2L2T:~$
+user@user-GNRD8-2L2T:~$ sudo systemctl edit ollama
+user@user-GNRD8-2L2T:~$
+user@user-GNRD8-2L2T:~$ sudo systemctl daemon-reload
+user@user-GNRD8-2L2T:~$ sudo systemctl restart ollama
+user@user-GNRD8-2L2T:~$
+user@user-GNRD8-2L2T:~$ ss -tlnp | grep 11434
+LISTEN 0      4096               *:11434            *:*
+
+
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ ollama list
+NAME                    ID              SIZE      MODIFIED
+gemma4:26b              5571076f3d70    17 GB     3 minutes ago
+gemma4:31b              6316f0629137    19 GB     48 minutes ago
+gemma4:e4b              c6eb396dbd59    9.6 GB    2 hours ago
+gemma4:e2b              7fbdbf8f5e45    7.2 GB    2 hours ago
+glm-4.7-flash:latest    e060d7f63f19    19 GB     3 weeks ago
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:31b","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+{"id":"chatcmpl-907","object":"chat.completion","created":1775803750,"model":"gemma4:31b","system_fingerprint":"fp_ollama","choices":[{"index":0,"message":{"role":"assistant","content":"","reasoning":"The user is asking for the weather in Seoul. I should use the `get_weather` tool to fetch this information. The tool requires a `city` parameter, which in this case is \"Seoul\".","tool_calls":[{"id":"call_y6wzkxc4","index":0,"type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Seoul\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":61,"completion_tokens":61,"total_tokens":122}}
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:e4b","messages":[{"role":"user","content":"What is the weather in Seoul?"}],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"temperature":0.0}'
+{"id":"chatcmpl-153","object":"chat.completion","created":1775803779,"model":"gemma4:e4b","system_fingerprint":"fp_ollama","choices":[{"index":0,"message":{"role":"assistant","content":"","reasoning":"1. **Analyze the user's request:** The user is asking \"What is the weather in Seoul?\".\n\n2. **Examine available tools:** The provided tool is `get_weather`.\n\n3. **Analyze the tool signature:**\n   - `get_weather` requires one parameter: `city` (STRING).\n   - It returns the weather for the specified city.\n\n4. **Determine necessary arguments:** The user specified the city \"Seoul\".\n\n5. **Construct the tool call:** Call `get_weather` with `city=\"Seoul\"`.\n\n6. **Format the output:** Generate the JSON tool call structure.","tool_calls":[{"id":"call_w139i3kd","index":0,"type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Seoul\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":61,"completion_tokens":151,"total_tokens":212}}
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4:31b","messages":[{"role":"user","content":"1+1은?"}],"temperature":0.0,"max_tokens":64}'
+{"id":"chatcmpl-477","object":"chat.completion","created":1775803809,"model":"gemma4:31b","system_fingerprint":"fp_ollama","choices":[{"index":0,"message":{"role":"assistant","content":"","reasoning":"*   Input: \"1+1은?\" (What is 1+1?)\n    *   Language: Korean.\n    *   Intent: Simple arithmetic question.\n\n    *   1 + 1 = 2.\n\n    *   Direct answer: \"2입니다.\" (It"},"finish_reason":"length"}],"usage":{"prompt_tokens":20,"completion_tokens":64,"total_tokens":84}}
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$ hostname -I | awk '{print $1}'
+10.88.22.29
+(gemma4venv) dongho.yoon@user-GNRD8-2L2T:~/models$
+
+
+=== Comment #6090453 | 2026-04-10T06:52:37Z ===
+## ✅ Ollama 전체 성공! OmO 설정 변경
+
+31B/E4B tool call 모두 성공. 이제 OpenCode + OmO 설정을 Ollama로 변경합니다.
+블랙웰 서버 IP: **10.88.22.29**, Ollama 포트: **11434**
+
+---
+
+### opencode.json 수정
+
+`~/.config/opencode/opencode.json` (블랙웰은 localhost, 윈도우는 10.88.22.29)
+
+**블랙웰 서버용 (localhost):**
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "oh-my-openagent@3.15.3"
+  ],
+  "provider": {
+    "ollama": {
+      "name": "Ollama Gemma4",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://localhost:11434/v1",
+        "apiKey": "ollama"
+      },
+      "models": {
+        "gemma4:31b": {
+          "name": "Gemma4 31B",
+          "limit": {
+            "context": 131072,
+            "tool_call": true,
+            "output": 8192
+          }
+        },
+        "gemma4:e4b": {
+          "name": "Gemma4 E4B",
+          "limit": {
+            "context": 131072,
+            "tool_call": true,
+            "output": 4096
+          }
+        },
+        "gemma4:26b": {
+          "name": "Gemma4 26B",
+          "limit": {
+            "context": 131072,
+            "tool_call": true,
+            "output": 8192
+          }
+        },
+        "gemma4:e2b": {
+          "name": "Gemma4 E2B",
+          "limit": {
+            "context": 131072,
+            "tool_call": true,
+            "output": 4096
+          }
+        }
+      }
+    }
+  },
+  "model": "ollama/gemma4:31b"
+}
+```
+
+**윈도우 데스크탑용 (원격 접속):**
+위와 동일하되 baseURL만 변경:
+```json
+"baseURL": "http://10.88.22.29:11434/v1"
+```
+
+---
+
+### oh-my-openagent.jsonc 수정
+
+`~/.config/opencode/oh-my-openagent.jsonc`
+
+```jsonc
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "sisyphus": { "model": "ollama/gemma4:31b", "description": "Main orchestrator" },
+    "hephaestus": { "model": "ollama/gemma4:e4b", "description": "Auto worker" },
+    "oracle": { "model": "ollama/gemma4:e4b", "description": "Read-only consultant" },
+    "librarian": { "model": "ollama/gemma4:e4b", "description": "Reference search" },
+    "explore": { "model": "ollama/gemma4:e4b", "description": "Contextual grep" },
+    "multimodal-looker": { "model": "ollama/gemma4:e4b", "description": "Vision analysis" },
+    "metis": { "model": "ollama/gemma4:31b", "description": "Pre-planning consultant" },
+    "momus": { "model": "ollama/gemma4:31b", "description": "Plan reviewer" },
+    "atlas": { "model": "ollama/gemma4:e4b", "description": "Task orchestrator" },
+    "prometheus": { "model": "ollama/gemma4:31b", "description": "Strategic planner" }
+  },
+  "categories": {
+    "visual-engineering": { "model": "ollama/gemma4:e4b", "description": "Frontend/UX" },
+    "ultrabrain": { "model": "ollama/gemma4:31b", "description": "Complex logic" },
+    "deep": { "model": "ollama/gemma4:31b", "description": "Deep problem solving" },
+    "artistry": { "model": "ollama/gemma4:31b", "description": "Creative/complex" },
+    "quick": { "model": "ollama/gemma4:e4b", "description": "Quick fixes" },
+    "unspecified-low": { "model": "ollama/gemma4:e4b", "description": "Low-priority" },
+    "unspecified-high": { "model": "ollama/gemma4:31b", "description": "High-priority" },
+    "writing": { "model": "ollama/gemma4:31b", "description": "Documentation" }
+  }
+}
+```
+
+---
+
+### 적용 방법
+
+```bash
+# 블랙웰에서 설정 파일 수정
+cd ~/.config/opencode
+
+# 기존 설정 백업
+cp opencode.json opencode.json.bak.qwen
+cp oh-my-openagent.jsonc oh-my-openagent.jsonc.bak.qwen
+
+# 위 내용으로 파일 수정 후 OpenCode 재시작
+# opencode 실행해서 시지푸스가 보이는지 확인!
+```
+
+**모델 배분:**
+- 🧠 31B: 시지푸스, 프로메테우스, 메티스, 모무스 (분석/전략)
+- ⚡ E4B: 헤파이스토스, 오라클, 라이브러리안, 아틀라스 (실행/검색)
+
+=== Comment #6090460 | 2026-04-10T06:55:02Z ===
+dongho.yoon@user-GNRD8-2L2T:~/.ollama$ ollama run gemma4:26b
+pulling manifest
+pulling 7121486771cb: 100% ▕██████████████████████████████████████████████████████████████████████████████████████████████████████████████████▏  17 GB
+pulling 7339fa418c9a: 100% ▕██████████████████████████████████████████████████████████████████████████████████████████████████████████████████▏  11 KB
+pulling 56380ca2ab89: 100% ▕██████████████████████████████████████████████████████████████████████████████████████████████████████████████████▏   42 B
+pulling 90294508afbb: 100% ▕██████████████████████████████████████████████████████████████████████████████████████████████████████████████████▏  474 B
+verifying sha256 digest
+writing manifest
+success
+>>> 하이
+Thinking...
+*   Input: "하이" (Hi/Hello).
+    *   Language: Korean.
+    *   Tone: Casual/Friendly.
+
+    *   Acknowledge the greeting.
+    *   Respond in a friendly and helpful manner.
+    *   Offer assistance.
+
+    *   *Option 1 (Formal):* 안녕하세요! 무엇을 도와드릴까요? (Hello! How can I help you?)
+    *   *Option 2 (Casual/Friendly):* 안녕! 만나서 반가워요. 무엇을 도와줄까요? (Hi! Nice to meet you. How can I help?)
+    *   *Option 3 (Polite/Standard - Best for AI):* 안녕하세요! 반갑습니다. 오늘 어떤 도움을 드릴까요? (Hello! Nice to meet you. How can I help you today?)
+
+    *   "안녕하세요! 반가워요. 😊 무엇을 도와드릴까요?" (Hello! Nice to meet you. How can I help you?)
+
+(Direct and friendly response).
+...done thinking.
+
+안녕하세요! 반가워요. 😊 무엇을 도와드릴까요?
+
+>>> Send a message (/? for help)
+
+
+
+Every 2.0s: nvidia-smi                                          user-GNRD8-2L2T: Fri Apr 10 15:54:56 2026
+
+Fri Apr 10 15:54:56 2026
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA RTX PRO 6000 Blac...    Off |   00000000:46:00.0 Off |                  Off |
+| 30%   33C    P8             27W /  600W |   45051MiB /  97887MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA RTX PRO 6000 Blac...    Off |   00000000:60:00.0 Off |                  Off |
+| 30%   32C    P8             22W /  600W |   24823MiB /  97887MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2710      G   /usr/lib/xorg/Xorg                      266MiB |
+|    0   N/A  N/A            2910      G   /usr/bin/gnome-shell                     24MiB |
+|    0   N/A  N/A         1227119      C   /usr/local/bin/ollama                 44700MiB |
+|    1   N/A  N/A            2710      G   /usr/lib/xorg/Xorg                        4MiB |
+|    1   N/A  N/A         1228182      C   /usr/local/bin/ollama                 24800MiB |
++-----------------------------------------------------------------------------------------+
+
+=== Comment #6090463 | 2026-04-10T06:56:14Z ===
+## 3모델 배분 — 31B + 26B + E4B
+
+26B도 준비됐으니 3단계로 배분합니다.
+
+### oh-my-openagent.jsonc (수정본)
+
+```jsonc
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "sisyphus":          { "model": "ollama/gemma4:31b", "description": "Main orchestrator" },
+    "prometheus":        { "model": "ollama/gemma4:31b", "description": "Strategic planner" },
+    "metis":             { "model": "ollama/gemma4:31b", "description": "Pre-planning consultant" },
+    "momus":             { "model": "ollama/gemma4:31b", "description": "Plan reviewer" },
+    "hephaestus":        { "model": "ollama/gemma4:26b", "description": "Auto worker" },
+    "atlas":             { "model": "ollama/gemma4:26b", "description": "Task orchestrator" },
+    "multimodal-looker": { "model": "ollama/gemma4:26b", "description": "Vision analysis" },
+    "oracle":            { "model": "ollama/gemma4:e4b", "description": "Read-only consultant" },
+    "librarian":         { "model": "ollama/gemma4:e4b", "description": "Reference search" },
+    "explore":           { "model": "ollama/gemma4:e4b", "description": "Contextual grep" }
+  },
+  "categories": {
+    "ultrabrain":          { "model": "ollama/gemma4:31b", "description": "Complex logic" },
+    "deep":                { "model": "ollama/gemma4:31b", "description": "Deep problem solving" },
+    "artistry":            { "model": "ollama/gemma4:26b", "description": "Creative/complex" },
+    "writing":             { "model": "ollama/gemma4:26b", "description": "Documentation" },
+    "visual-engineering":  { "model": "ollama/gemma4:26b", "description": "Frontend/UX" },
+    "unspecified-high":    { "model": "ollama/gemma4:26b", "description": "High-priority" },
+    "quick":               { "model": "ollama/gemma4:e4b", "description": "Quick fixes" },
+    "unspecified-low":     { "model": "ollama/gemma4:e4b", "description": "Low-priority" }
+  }
+}
+```
+
+### 배분 기준
+
+| 티어 | 모델 | 에이전트 | 카테고리 |
+|------|------|---------|---------|
+| 🧠 Heavy | 31B | 시지푸스, 프로메테우스, 메티스, 모무스 | ultrabrain, deep |
+| ⚙️ Medium | 26B | 헤파이스토스, 아틀라스, 멀티모달 | artistry, writing, visual, high |
+| ⚡ Light | E4B | 오라클, 라이브러리안, 익스플로어 | quick, low |
+
+### 적용
+
+```bash
+cd ~/.config/opencode
+
+# 백업
+cp oh-my-openagent.jsonc oh-my-openagent.jsonc.bak.qwen
+
+# 위 내용으로 수정 후 OpenCode 재시작
+```
+
+=== Comment #6090518 | 2026-04-10T07:33:28Z ===
+하이, 넌 누구니?
+Thinking: *   User: "하이, 넌 누구니?" (Hi, who are you?)
+    *   Language: Korean.
+    *   Name: Sisyphus.
+    *   Role: Powerful AI Agent with orchestration capabilities from OhMyOpenCode.
+    *   Identity: SF Bay Area engineer. Work, delegate, verify, ship. No AI slop.
+    *   Tone: Concise, professional, senior engineer style. No flattery, no preamble.
+    *   Direct answer to "Who are you?".
+    *   Mention "Sisyphus" and "OhMyOpenCode".
+    *   Describe the persona (SF Bay Area engineer, professional, no-slop).
+    *   Keep it concise.
+    *   "저는 Sisyphus입니다. OhMyOpenCode의 오케스트레이션 능력을 갖춘 강력한 AI 에이전트이자, 샌프란시스코 베이 에어리어의 엔지니어입니다. 불필요한 말 없이 효율적으로 작업하고, 위임하며, 검증하고, 최종적으로 제품을 런칭하는 것에 집중합니다."
+    *   No "Great question!", no "I'm so happy to meet you!". Just the facts.
+저는 Sisyphus입니다. OhMyOpenCode의 오케스트레이션 능력을 갖춘 AI 에이전트이자, 샌프란시스코 베이 에어리어 기반의 엔지니어입니다.
+불필요한 수식어 없이 효율적으로 작업하고, 적절히 위임하며, 철저히 검증하여 결과물을 런칭하는 것을 목표로 합니다. 시니어 엔지니어 수준의 코드와 정밀한 실행력을 제공합니다.
+▣  Sisyphus (Ultraworker) · Gemma4 31B · 34.2s
+
+
+
+
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "file:///home/dongho.yoon/.nvm/versions/node/v25.6.1/lib/node_modules/oh-my-opencode/dist/index.js"
+  ],
+  "provider": {
+    "ollama": {
+      "name": "Ollama Gemma4",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://localhost:11434/v1",
+        "apiKey": "ollama"
+      },
+      "models": {
+        "gemma4:31b": {
+          "name": "Gemma4 31B",
+          "limit": {
+            "context": 131072,
+            "tool_call": true,
+            "output": 8192
+          }
+        },
+        "gemma4:e4b": {
+          "name": "Gemma4 E4B",
+          "limit": {
+            "context": 131072,
+            "tool_call": true,
+            "output": 4096
+          }
+        },
+        "gemma4:26b": {
+          "name": "Gemma4 26B",
+          "limit": {
+            "context": 131072,
+            "tool_call": true,
+            "output": 8192
+          }
+        },
+        "gemma4:e2b": {
+          "name": "Gemma4 E2B",
+          "limit": {
+            "context": 131072,
+            "tool_call": true,
+            "output": 4096
+          }
+        }
+      }
+    }
+  },
+  "model": "ollama/gemma4:31b"
+}
+
+
+
+
