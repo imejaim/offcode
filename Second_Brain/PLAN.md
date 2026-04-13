@@ -69,17 +69,29 @@
 
 ---
 
-## 리서치 결과 요약 (완료 후 채움)
+## 리서치 결과 요약 (2026-04-13 Phase 0 완료)
 
-### L1 — Karpathy gist 분석
-*(에이전트 완료 후 본 위치에 300자 요약)*
+### L1 — Karpathy gist 분석 → `research/karpathy_gist_analysis.md`
 
-### L2 — 최신 방법론
-*(에이전트 완료 후 본 위치에 300자 요약)*
+Karpathy gist는 자기참조 에세이가 아니라 **"LLM Wiki" 패턴 문서**. 핵심 주장: RAG가 매 질문마다 지식을 재발견하는 반면, LLM Wiki는 **인제스트 타임에 지식을 컴파일**해 마크다운 그래프로 누적하고 LLM이 wiki 유지보수자 역할. 아키텍처는 **3-레이어(Raw sources / Wiki / Schema=CLAUDE.md) + 3-연산(Ingest/Query/Lint) + 2개 특수 파일(`index.md`, `log.md`)**. 임베딩 DB 없이 `index.md`만으로 ~100 sources 운영 가능. 멘탈 모델: "메모리 = 사람이 읽을 수 있는 git 버전 관리 마크다운", self-reference=wiki 읽기, reflection=lint 패스. Vannevar Bush Memex의 유지보수 난제를 LLM이 해결한다는 프레임. **폐쇄망/로컬 LLM 적합성 매우 높음**.
 
-### L3 — 적용 사례
-*(에이전트 완료 후 본 위치에 300자 요약)*
+### L2 — 2025–2026 최신 방법론 → `research/latest_methods_2026.md`
+
+네 방향 수렴: (1) **Letta**(MemGPT 제품화, 2025-10 V1) — core/recall/archival 블록 업계 표준. (2) **A-MEM**(NeurIPS 2025) — Zettelkasten 자기조직화, 쓰기마다 링크·재색인 evolve. (3) **Mem0 v1.0**(41k⭐, Apache-2.0) — vector+graph+KV, LOCOMO에서 OpenAI Memory +26% / -91% 지연. (4) **MIRIX** 6-type 멀티에이전트 — LOCOMO 85.4% SOTA. 제품 현장(Claude Code Auto Memory + **Auto Dream**, Windsurf, Gemini)은 "규칙파일 + 자동노트 + 주기 consolidation" 3층으로 수렴. Karpathy Wiki는 이 스펙트럼의 **극미니멀 끝** — Auto Dream의 consolidation + A-MEM의 evolution을 DB 없이 markdown+schema로 구현. **OFFCODE 추천 3종**: (1) Karpathy Wiki + Auto Dream 트리거를 메인 엔진 (2) Letta 자가호스팅+Ollama(31B 전용) 서브 (3) A-MEM evolution을 markdown 위에 오버레이. 제외: Mem0(graph DB 의존), MIRIX(풀스택 과부하), LangGraph(중복).
+
+### L3 — 실제 적용 사례 → `research/application_cases.md`
+
+**Claude Code 4레이어(CLAUDE.md + Auto Memory + Session + Auto Dream)가 OFFCODE 최적 레퍼런스** — 파일 기반, 시맨틱 서치 불필요, 폐쇄망 친화. 보완 필요: MEMORY.md 25KB/200라인 한계, 멀티에이전트 레이스 컨디션, "왜"를 저장 못 하는 한계. OSS 1순위 **Mem0(41k⭐)**, 2순위 **Graphiti(20k⭐, FalkorDB 로컬 가능, Gemma4 26B 친화)** — 둘 다 로컬화 개조 필요. **운영 실패 교훈**: LangChain 이메일 에이전트 consolidation 실패(메모리 무한증식, 프롬프트 전담자 필요) / POC→프로덕션 월 $500→$847K, full-context 17초 latency / ChatGPT 2025-02 사일런트 메모리 붕괴 → **벤더 락인 금지, git-backed 로컬 메모리가 답** / Devin은 장기메모리 포기하고 세션 파일시스템 활용 — 반면교사. 벤치마크: LoCoMo MemMachine 0.9169, LongMemEval OMEGA 95.4%. **최종 권고**: Claude Code 4레이어를 OmO 훅으로 재구현 + Graphiti(FalkorDB) 의사결정 그래프 레이어 얹는 하이브리드. 규율: 스키마 validation 강제, 세션 종료 시 reflect/compact, 중요 업데이트 human-in-the-loop, 파일 크기 모니터링.
+
+---
+
+## Phase 0 종합 판단 (VDI 세션)
+
+3레인이 **한 결론으로 수렴**: Karpathy Wiki 패턴 + Claude Code 4레이어 + A-MEM evolution 오버레이 = OFFCODE 최적 아키텍처. 벤더 락인/외부 DB 의존 없음. 이미 우리가 쓰고 있는 `MEMORY.md` 시스템이 이 계보의 최소 구현체 → **Phase 2 설계 난이도가 예상보다 낮음**.
+
+Phase 1(비교표) 착수 조건 만족. 다음 세션에서 `apply/comparison.md` 작성 예정.
 
 ---
 
 *문서 작성: 2026-04-13 (VDI 세션)*
+*Phase 0 완료: 2026-04-13 (백그라운드 에이전트 3레인 병렬 실행)*
