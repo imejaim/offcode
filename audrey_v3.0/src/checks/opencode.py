@@ -1,6 +1,7 @@
 """B1~B5 — OpenCode install + config + baseURL reachability cross-check."""
 from __future__ import annotations
 
+from pathlib import Path
 from urllib.parse import urlparse
 
 from ..config import Config, expand_path, read_jsonc
@@ -45,30 +46,65 @@ def check_b2_opencode(cfg: Config, ctx: CheckContext) -> CheckResult:
         return CheckResult("B2", "OpenCode 설치", STATUS_FAIL, str(exc), CATEGORY_OPENCODE)
 
 
+# OpenCode 공식 후보 순서 (upstream config.ts:1071):
+#   opencode.jsonc > opencode.json > config.json
+# jsonc가 1순위이므로 오드리도 동일한 우선순위로 탐색한다.
+_OPENCODE_CONFIG_FILENAMES = ("opencode.jsonc", "opencode.json", "config.json")
+
+
 def _load_opencode_json(cfg: Config, ctx: CheckContext) -> tuple:
-    path = cfg.opencode_config_dir / "opencode.json"
+    """Locate and parse the active OpenCode config file.
+
+    Tries .jsonc, .json, config.json in upstream's own priority order.
+    Returns (path_found_or_first_candidate, parsed_or_None).
+
+    Caches the parsed dict on `ctx.opencode_json` (unchanged shape, for
+    omo.py compatibility) and the resolved Path on `ctx.opencode_json_path`.
+    """
     if ctx.opencode_json is not None:
-        return path, ctx.opencode_json
-    data = read_jsonc(path)
-    if data is not None:
-        ctx.opencode_json = data
-    return path, data
+        cached_path = getattr(ctx, "opencode_json_path", None)
+        if cached_path:
+            return Path(cached_path), ctx.opencode_json
+        return cfg.opencode_config_dir / _OPENCODE_CONFIG_FILENAMES[0], ctx.opencode_json
+
+    first_candidate = cfg.opencode_config_dir / _OPENCODE_CONFIG_FILENAMES[0]
+    for filename in _OPENCODE_CONFIG_FILENAMES:
+        candidate = cfg.opencode_config_dir / filename
+        if not candidate.exists():
+            continue
+        data = read_jsonc(candidate)
+        if data is not None:
+            ctx.opencode_json = data
+            # Stash resolved path in a side channel so B5/C7/etc. can tell
+            # which file was actually used without mutating the main shape.
+            setattr(ctx, "opencode_json_path", str(candidate))
+            return candidate, data
+    return first_candidate, None
 
 
 def check_b3_opencode_json(cfg: Config, ctx: CheckContext) -> CheckResult:
     try:
         path, data = _load_opencode_json(cfg, ctx)
         if data is None:
+            tried = " / ".join(_OPENCODE_CONFIG_FILENAMES)
             return CheckResult(
                 "B3",
-                "opencode.json",
+                "opencode.json/jsonc",
                 STATUS_FAIL,
-                f"not found: {path}",
+                f"not found in {cfg.opencode_config_dir} (tried: {tried})",
                 CATEGORY_OPENCODE,
+                fix=f"opencode.jsonc 또는 opencode.json 파일을 {cfg.opencode_config_dir}에 생성",
             )
-        return CheckResult("B3", "opencode.json", STATUS_PASS, str(path), CATEGORY_OPENCODE)
+        return CheckResult(
+            "B3",
+            "opencode.json/jsonc",
+            STATUS_PASS,
+            f"{path.name} @ {path.parent}",
+            CATEGORY_OPENCODE,
+            meta={"path": str(path), "ext": path.suffix},
+        )
     except Exception as exc:
-        return CheckResult("B3", "opencode.json", STATUS_FAIL, str(exc), CATEGORY_OPENCODE)
+        return CheckResult("B3", "opencode.json/jsonc", STATUS_FAIL, str(exc), CATEGORY_OPENCODE)
 
 
 def _extract_provider_baseurls(data: dict) -> list:
@@ -132,7 +168,14 @@ def check_b5_baseurl_reachable(cfg: Config, ctx: CheckContext) -> CheckResult:
                 ]
                 if alive_non_local:
                     traps.append((name, url, alive_non_local[0].provider.base_url))
-            code, body, _ = http_get(url.rstrip("/") + "/v1/models", timeout=3.0)
+            # Normalize: opencode.json's baseURL usually ends with "/v1"
+            # (per OpenAI-compatible convention). Don't double-append /v1.
+            probe = url.rstrip("/")
+            if probe.endswith("/v1"):
+                probe = probe + "/models"
+            else:
+                probe = probe + "/v1/models"
+            code, body, _ = http_get(probe, timeout=3.0)
             if code != 200:
                 failures.append((name, url, f"HTTP {code}: {body[:60]}"))
 

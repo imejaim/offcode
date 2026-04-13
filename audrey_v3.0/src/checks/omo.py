@@ -37,17 +37,26 @@ def _get_plugin_path(data: Optional[dict]) -> Optional[str]:
 
 
 def _find_omo_config() -> Optional[Path]:
-    candidates = [
-        Path.cwd() / "oh-my-openagent.jsonc",
-        Path.cwd() / ".opencode" / "oh-my-openagent.jsonc",
-        expand_path("~/.config/opencode/oh-my-openagent.jsonc"),
-        expand_path("~/.config/oh-my-openagent/oh-my-openagent.jsonc"),
-        Path.cwd() / ".opencode" / "oh-my-opencode.jsonc",
-        expand_path("~/.config/opencode/oh-my-opencode.jsonc"),
+    """OmO 설정 파일 탐색.
+
+    upstream OpenCode `paths.ts:39` 패턴에 맞춰 `.jsonc`와 `.json` 확장자를
+    모두 허용한다. `oh-my-openagent`(dual publish)와 `oh-my-opencode`
+    이름을 모두 본다.
+    """
+    roots = [
+        Path.cwd(),
+        Path.cwd() / ".opencode",
+        expand_path("~/.config/opencode"),
+        expand_path("~/.config/oh-my-openagent"),
     ]
-    for c in candidates:
-        if c.exists():
-            return c
+    names = ("oh-my-openagent", "oh-my-opencode")
+    exts = (".jsonc", ".json")
+    for root in roots:
+        for name in names:
+            for ext in exts:
+                candidate = root / f"{name}{ext}"
+                if candidate.exists():
+                    return candidate
     return None
 
 

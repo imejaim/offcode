@@ -1,4 +1,4 @@
-"""CLI entry point for Dr. Oh v3.0."""
+"""CLI entry point for Dr. Oh v3.1."""
 from __future__ import annotations
 
 import argparse
@@ -116,8 +116,8 @@ def _run_checks(cfg: Config, ctx: CheckContext, categories: list) -> list:
 def main(argv: Optional[list] = None) -> int:
     _fix_stdout_encoding()
     parser = argparse.ArgumentParser(
-        prog="python -m audrey_v3.0",
-        description="Dr. Oh v3.0 — Agentium 환경 진단",
+        prog="audrey3",
+        description="Dr. Oh v3.1 — Agentium 환경 진단",
     )
     parser.add_argument("--config", type=Path, help="v3 또는 v2 config.json 경로")
     parser.add_argument(

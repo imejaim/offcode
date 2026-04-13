@@ -46,7 +46,7 @@ def emit_ascii(
     lines: list = []
     bar = "=" * 60
     lines.append(bar)
-    lines.append("        Agentium 환경 진단서 — Dr. Oh v3.0")
+    lines.append("        Agentium 환경 진단서 — Dr. Oh v3.1")
     lines.append(bar)
     env = ctx.env
     lines.append(f"  환경: {env.kind} ({env.hostname}, {env.os})")

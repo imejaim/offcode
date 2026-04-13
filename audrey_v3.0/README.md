@@ -1,4 +1,15 @@
-# 오드리 v3.0 (Dr. Oh) — Agentium 헬스체크 에이전트
+# 오드리 v3.1 (Dr. Oh) — Agentium 헬스체크 에이전트
+
+> 폴더명은 `audrey_v3.0`(최초 스캐폴딩 당시)이지만 현재 **v3.1**. 폴더 rename은 차기에.
+
+## v3.1 변경사항 (2026-04-13, v3.0 대비 패치)
+
+- **B3 `opencode.jsonc` 지원** — OpenCode upstream은 `opencode.jsonc > opencode.json > config.json` 순으로 공식 지원(`opencode-dev/packages/opencode/src/config/config.ts:1071`). v3.0은 `.json`만 봐서 `.jsonc` 사용자에게 false FAIL. v3.1은 3개 후보 모두 탐색.
+- **OmO 설정 탐색 확장** — `oh-my-openagent.jsonc/json` + `oh-my-opencode.jsonc/json`. 여러 루트 디렉터리 × 이름 × 확장자 매트릭스.
+- **B5 baseURL probe 정규화** — baseURL이 이미 `/v1`으로 끝나면 `/models`만 붙여서 이중 `/v1` 방지 (Ollama 404 버그 수정).
+- **버전 문자열** — `3.0.0` → `3.1.0`, 진단서 헤더도 v3.1.
+- `ctx.opencode_json_path` 사이드 채널로 실제 선택된 파일 경로 보존 (omo.py 호환 유지).
+
 
 > **Agentis 플랫폼**의 실행 엔진인 **Agentium**(OpenCode + OmO + 로컬 LLM)의 건강 상태를
 > 진단하는 에이전트. v2.31의 "설정 문법 검사기"에서 "환경 건강 진단기"로 재설계.
