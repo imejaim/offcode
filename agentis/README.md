@@ -9,12 +9,22 @@
 - [Bun 설치 카드](./install_bun.md) — bun 오프라인 설치 (보조)
 - [업데이트 전략](./UPDATE_STRATEGY.md) — opencode 본가 업데이트 반영 절차 (옵션 1: VDI빌드→Releases / 옵션 2: 사내직결, 결재항목)
 
-## 배포 산출물
+## 배포 산출물 (GitHub Releases)
 
-- [`dist/opencode-windows-x64/`](./dist/opencode-windows-x64/) — **빌드 완료 패키지 (2026-04-13)**
-  - `opencode.exe` (157 MB, 단일 실행파일, TUI 전용)
-  - `README_사내망_설치.md` — 복붙용 PowerShell 설치 명령어 포함
-  - 사내망에 이 폴더 통째로 복사하면 끝
+**👉 다운로드: [opencode 2026-04-13 (windows-x64)](https://github.com/imejaim/offcode/releases/tag/opencode-2026-04-13)**
+
+- `opencode.exe` (157 MB, 단일 실행파일, TUI 전용, Windows x64)
+- 빌드 정보·설치 가이드는 릴리스 노트 참고
+- exe는 git에 안 넣고 Releases로만 배포 (`.gitignore` 처리)
+
+설치 절차 상세: [`dist/opencode-windows-x64/README_사내망_설치.md`](./dist/opencode-windows-x64/README_사내망_설치.md)
+
+### 노트북/사내 PC에서 받기
+
+```powershell
+gh release download opencode-2026-04-13 -R imejaim/offcode -p "opencode.exe"
+```
+또는 브라우저로 위 릴리스 페이지 → Assets → `opencode.exe` 클릭
 
 ## 상위 문서
 
