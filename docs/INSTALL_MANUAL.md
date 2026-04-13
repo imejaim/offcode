@@ -1,7 +1,19 @@
 # OFFCODE 사내 설치 매뉴얼
 
-> OpenCode + OmO(oh-my-openagent) + 로컬 vLLM 환경 설치 가이드
+> OpenCode + OmO(oh-my-openagent) + 로컬 LLM 환경 설치 가이드
 > 대상 환경: Windows 11 (사내 PC)
+
+---
+
+> ⚠️ **2026-04-13 업데이트 예정**
+> 이 문서는 초기 Qwen3.5 + vLLM 기준으로 작성됨.
+> 현재는 **Gemma4 31B/26B/E4B + Ollama**로 전환됨 (2026-04-10).
+> 윈도우 데스크탑 시지푸스 검증 완료 후 실제 검증된 순서로 재작성 예정.
+>
+> **현재 권장 설정:**
+> - Provider: `ollama` (baseURL: `http://10.88.22.29:11434/v1`, apiKey: `ollama`)
+> - 모델 배분: Heavy=`gemma4:31b`, Medium=`gemma4:26b`, Light=`gemma4:e4b`
+> - 자세한 설정 예시: `_archive/gist_comments_20260410.txt` 참고
 
 ---
 

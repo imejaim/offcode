@@ -13,7 +13,7 @@
 │                                                      │
 │  OpenCode + OmO (oh-my-opencode)                     │
 │  하네스 구조: 도구 실행, MCP, CLI, 훅, 서브에이전트     │
-│  로컬 LLM: Qwen3.5 / Gemma4 (vLLM 서빙)             │
+│  로컬 LLM: Gemma4 31B/26B/E4B (Ollama 서빙)          │
 │                                                      │
 │  역할: 에이전트 코드를 작성, 테스트, 디버깅, 배포       │
 │        의존성 해결, 환경 구축을 하네스적으로 수행        │
@@ -25,7 +25,7 @@
 │                                                      │
 │  PydanticAI — 타입 안전 에이전트 프레임워크 (Python)   │
 │  LangGraph  — 복잡한 멀티스텝 워크플로우 (필요시)      │
-│  vLLM       — OpenAI 호환 API 엔드포인트              │
+│  Ollama     — OpenAI 호환 API (11434/v1, 멀티모델 핫스왑) │
 │  MCP 서버   — 메일, DB, 파일, Slack 등 도구 연결       │
 │                                                      │
 │  역할: 만들어진 에이전트가 실제 업무를 수행하는 환경     │
@@ -71,19 +71,28 @@
 
 ## 3. 사내 배포 로드맵
 
-### Phase 0: 인프라 확인
+### Phase 0: 인프라 확인 ✅ (2026-04-10 완료)
 ```
 [사내 GPU 서버] RTX PRO 6000 Blackwell x2 (Ubuntu)
        │
        ▼
-[vLLM 서빙] Qwen3.5 / Gemma4
+[Ollama 0.20.4 서빙] Gemma4 31B / 26B / E4B (0.0.0.0:11434)
        │
        ▼
-[터미널 접속 확인] ← 여기서부터 시작
+[터미널 접속 확인]
 ```
-- vLLM 서버 정상 동작 확인
-- 개발 PC에서 터미널로 vLLM 엔드포인트 접근 가능 여부 확인
-- OpenAI 호환 API (`/v1/chat/completions`) 응답 테스트
+- Ollama 서버 정상 동작 확인 (systemd, 외부 접속 허용)
+- 블랙웰 로컬에서 시지푸스 응답 확인 (Gemma4 31B, 34.2s)
+- 사내 데스크탑(윈도우)에서 `10.88.22.29:11434` 원격 접속 확인은 진행 중
+- vLLM은 백업으로 보류 (31B chat_template 미해결)
+
+### 3모델 배분 (Gemma4 / Ollama)
+
+| 티어 | 모델 | 에이전트 | 카테고리 |
+|------|------|---------|---------|
+| 🧠 Heavy | `gemma4:31b` | 시지푸스, 프로메테우스, 메티스, 모무스 | ultrabrain, deep |
+| ⚙️ Medium | `gemma4:26b` | 헤파이스토스, 아틀라스, 멀티모달 | artistry, writing, visual, high |
+| ⚡ Light | `gemma4:e4b` | 오라클, 라이브러리안, 익스플로어 | quick, low |
 
 ### Phase 1: OFFCODE 환경 구축
 ```
@@ -153,7 +162,7 @@ Phase 4 (비교 판단: 하네스 vs PydanticAI vs 하이브리드)
 - **결과에 따라 뀨리 2.0 런타임 결정**
 
 ### Phase 5: 진화
-- 모델 교체 (Qwen3.5 → 더 나은 모델)
+- 모델 교체/튜닝 (Gemma4 → 더 나은 모델, 또는 파인튜닝)
 - 뀨리 2.0 (Phase 4 결과 반영)
 - 추가 에이전트 개발 (Q&A, 보고서, 코드리뷰 등)
 - RAG 인프라 구축 (벡터DB + 문맥 강화 인덱싱)
@@ -223,7 +232,7 @@ Phase 4~5:  단일 바이너리 배포 (의존성 제거)
 
 | 레이어 | 기술 | 역할 |
 |---|---|---|
-| LLM 서빙 | vLLM | Qwen3.5, Gemma4 등 로컬 모델 서빙 |
+| LLM 서빙 | Ollama (메인) / vLLM (백업) | Gemma4 31B/26B/E4B 서빙, OpenAI 호환 API |
 | 코딩 에이전트 하네스 | OpenCode + OmO | 에이전트 빌더 (OFFCODE) |
 | 업무 에이전트 런타임 | PydanticAI | 타입 안전 에이전트 실행 (Python) |
 | 복잡 워크플로우 | LangGraph | 멀티스텝 상태머신 (필요시에만) |
@@ -246,4 +255,5 @@ Phase 4~5:  단일 바이너리 배포 (의존성 제거)
 ---
 
 *문서 작성일: 2026-04-07*
+*최종 업데이트: 2026-04-13 (Gemma4/Ollama 전환 반영)*
 *프로젝트: OFFCODE (오프코드)*

@@ -4,8 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 세션 시작 시
 
-- `WORKPLAN_OFFCODE_PHASE1.md`를 먼저 읽고 현재 진행 상태를 파악한 후 시작
+- `docs/CONSTRAINTS.md`를 **반드시** 읽고, 안 되는 방법을 제안하지 않는다
+- `docs/OFFCODE_ARCHITECTURE.md`로 전체 그림 파악, `docs/INSTALL_MANUAL.md`로 환경 절차 확인
+- 과거 작업 계획은 `_archive/WORKPLAN_OFFCODE_PHASE1.md` 참고 (완료)
 - "정리해" 또는 "기록해" → `cleanup` 스킬 실행 (히스토리 기록, 아카이브, git 관리, 문서 통합)
+
+## 문서 구조
+
+- `docs/OFFCODE_ARCHITECTURE.md` — 3레이어 아키텍처, 에이전트 로드맵, 배포 방식
+- `docs/CONSTRAINTS.md` — 블랙웰 서버 제약사항 (되는 것/안 되는 것)
+- `docs/INSTALL_MANUAL.md` — OFFCODE 환경 설치 매뉴얼
+- `audrey/` — 오드리(Dr. Oh) 환경검사 에이전트 v2.31
+- `_archive/` — 완료된 작업 계획, gist 댓글 아카이브
 
 ## Gist 소통 채널
 
@@ -21,7 +31,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Workspace Overview
 
-This workspace contains development clones of two related open-source projects (plus their zip archives and a `memo.txt` with upstream GitHub URLs):
+This workspace contains development clones of two related open-source projects (plus their zip archives and a `memo.md` with upstream GitHub URLs):
 
 | Directory | Project | Upstream |
 |-----------|---------|----------|
