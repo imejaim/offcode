@@ -1,0 +1,30 @@
+{
+  "schema_version": 3,
+  "providers": [
+    {
+      "name": "ollama",
+      "kind": "openai_compatible",
+      "base_url": "http://10.88.22.29:11434",
+      "priority": 1,
+      "required": false,
+      "expected_models": ["gemma4:31b", "gemma4:26b", "gemma4:e4b"]
+    },
+    {
+      "name": "vllm",
+      "kind": "openai_compatible",
+      "base_url": "http://10.88.22.29:8000",
+      "priority": 2,
+      "required": false,
+      "expected_models": []
+    }
+  ],
+  "opencode_config_dir": "~/.config/opencode",
+  "expected_plugin": "oh-my-openagent",
+  "environment_hint": "auto",
+  "e2e": {
+    "enabled": true,
+    "agents": ["sisyphus", "hephaestus", "oracle"],
+    "prompt": "ping",
+    "timeout_sec": 60
+  }
+}

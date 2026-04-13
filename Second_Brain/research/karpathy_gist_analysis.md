@@ -55,11 +55,11 @@ Karpathy의 프레임은 **"RAG vs. Self-Reference/Reflection"**이 아니라 **
 - **schema 파일(CLAUDE.md/AGENTS.md)의 위상이 매우 높다**. 이것이 에이전트를 "generic chatbot"에서 "disciplined wiki maintainer"로 바꾸는 핵심이라고 명시.
 - **Obsidian graph view**를 "wiki의 shape을 보는 최고의 방법"으로 꼽는 점에서, 그의 모델은 **그래프 구조적(graph-structural)**이지 임베딩 공간적이지 않다.
 
-## 5. OFFCODE 이식 고려사항
+## 5. Agentis 이식 고려사항
 
 Karpathy가 **암묵적으로 가정하는 것들**과, Gemma4 기반 폐쇄망 환경에서 깨지는 지점:
 
-**깨지지 않는 가정 (OFFCODE에 그대로 이식 가능):**
+**깨지지 않는 가정 (Agentis에 그대로 이식 가능):**
 - 마크다운 파일 + git 저장소 = 인프라 불필요. 폐쇄망에 최적.
 - 임베딩/벡터 DB 불필요 (index.md로 ~100 sources까지 커버) → **로컬 LLM의 약한 리트리벌 능력을 보완**.
 - 10~15개 파일을 한 pass에 편집하는 "툴 루프" 패턴 → OpenCode+OmO의 agent+tool 구조와 자연스럽게 부합.
@@ -68,9 +68,9 @@ Karpathy가 **암묵적으로 가정하는 것들**과, Gemma4 기반 폐쇄망 
 1. **컨텍스트 윈도우**: Claude Code/Codex는 수십 파일을 한 번에 읽고 일관되게 편집할 수 있다. Gemma4 (특히 26B-A4B)는 한 번에 touch 가능한 파일 수가 적을 수 있음 → **ingest를 "소스 1개 × 편집 k개"가 아닌 "단계별 파이프라인(요약 → 링크 추출 → 페이지별 업데이트)"로 분해** 필요.
 2. **교차 참조 품질**: 고품질 cross-linking은 강한 instruction following을 요구. Gemma4에는 schema(CLAUDE.md 대응물)를 더 **엄격하고 예시 중심**으로 써야 함.
 3. **qmd 같은 외부 도구**: github.com 의존 → 폐쇄망에서는 wget만 가능한 블랙웰 환경 제약 고려. **대안: ripgrep+BM25 Python 스크립트로 자체 구현**(OmO 툴로).
-4. **Obsidian GUI 가정**: OFFCODE는 VDI/CLI 중심 → graph view 대신 **텍스트 기반 그래프 덤프**(예: `lint` 시 인접 리스트 출력)로 대체.
+4. **Obsidian GUI 가정**: Agentis는 VDI/CLI 중심 → graph view 대신 **텍스트 기반 그래프 덤프**(예: `lint` 시 인접 리스트 출력)로 대체.
 5. **"You read it; the LLM writes it"**: 회장님이 Obsidian처럼 실시간 브라우징할 수 있는 뷰어가 폐쇄망에 필요. 정적 HTML 빌더(예: mkdocs) 로컬 빌드 고려.
-6. **자동 업데이트/배포 경로 부재**: Karpathy는 개인용. OFFCODE는 팀 공유 예정 → **git 기반 동기화 + 머지 정책** 추가 필요.
+6. **자동 업데이트/배포 경로 부재**: Karpathy는 개인용. Agentis는 팀 공유 예정 → **git 기반 동기화 + 머지 정책** 추가 필요.
 
 **주류 프레임워크 대비 포지션 (후속 연구 연결):**
 - **MemGPT/Letta**: OS 메타포, 페이지 in/out. Karpathy는 "OS 필요 없다, git + markdown이면 충분"이라는 입장.

@@ -1,7 +1,7 @@
 # Second Brain Research L3 — 자기참조/영속 메모리 에이전트 실사례 조사
 
 조사일: 2026-04-13
-조사자: Researcher L3 (OFFCODE Second Brain)
+조사자: Researcher L3 (Agentis Second Brain)
 대상: 2025–2026 실제 프로덕션/주요 OSS에서 돌아가는 메모리 에이전트
 목적: 로컬 LLM(Gemma4) + 폐쇄망 + OpenCode/OmO 기반 환경에서 도입 가능성 평가
 
@@ -224,23 +224,23 @@
 
 ---
 
-## 5. OFFCODE 적용성 평가
+## 5. Agentis 적용성 평가
 
 전제: 로컬 LLM(Gemma4 31B 분석 + 26B-A4B 시지푸스), 폐쇄망, OpenCode + OmO 플러그인, GPU 96GB × 2 블랙웰 서버
 
 | 사례 | 적용 가능성 | 이유 |
 |------|:-:|------|
-| **Claude Code 4레이어 (MEMORY.md + Auto Memory + Auto Dream)** | **바로 도입 가능 (개념)** | 구조 자체는 파일 시스템 + 프롬프트 규약. 시맨틱 서치 없이도 동작. **OFFCODE에 가장 적합한 레퍼런스**. 단 실제 Claude Code 구현은 독점이므로 **설계 모방 + OmO 훅으로 재구현** 필요 |
+| **Claude Code 4레이어 (MEMORY.md + Auto Memory + Auto Dream)** | **바로 도입 가능 (개념)** | 구조 자체는 파일 시스템 + 프롬프트 규약. 시맨틱 서치 없이도 동작. **Agentis에 가장 적합한 레퍼런스**. 단 실제 Claude Code 구현은 독점이므로 **설계 모방 + OmO 훅으로 재구현** 필요 |
 | **Mem0** | **개조 필요** | Python 패키지, 벡터스토어(Qdrant/Chroma 등 로컬 가능) 사용 가능. 다만 **LLM 호출이 내부에서 일어나는 부분을 Gemma4로 교체** 필요. OpenAI API hard-code 제거 필수. 라이선스 Apache 2.0 (OK) |
 | **Graphiti / Zep** | **개조 필요** | Neo4j 또는 FalkorDB 필요 (로컬 배포 가능). LLM 요약 의존 낮음 → 작은 모델에 우호적. **시간 인식 그래프는 코드 히스토리와 잘 맞음**. MCP 서버 있어 OpenCode/OmO 연동 쉬움. 폐쇄망 그래프DB 구축 비용이 관건 |
 | **Letta (MemGPT V1)** | **개조 필요, 난이도 高** | Docker 배포 가능, 로컬 LLM 지원. 그러나 Letta는 최신 reasoning 모델(Claude 4.5/GPT-5) 기준으로 재설계 중이라 **Gemma4 26B 수준에서 동일 품질 재현이 리스크**. 시도해볼 만하지만 1차 선택은 아님 |
 | **LangMem (LangChain)** | **개조 필요** | LangChain 스택 도입 필요 → OpenCode/OmO 기조와 충돌. 다만 **운영 교훈(프롬프팅 full-time, consolidation 실패, 스키마 검증, human-in-the-loop)은 그대로 차용**해야 함 |
-| **CrewAI/AutoGen 메모리** | **불가(직접 도입)** / 교훈만 | 별도 프레임워크. OFFCODE는 OpenCode+OmO 기반이므로 도입 시 스택 중복. 단 "100 교환 프루닝", "장기 크루 cleanup" 패턴은 OmO 훅으로 이식 가능 |
+| **CrewAI/AutoGen 메모리** | **불가(직접 도입)** / 교훈만 | 별도 프레임워크. Agentis는 OpenCode+OmO 기반이므로 도입 시 스택 중복. 단 "100 교환 프루닝", "장기 크루 cleanup" 패턴은 OmO 훅으로 이식 가능 |
 | **Cursor Rules + Memories** | **바로 도입 가능 (개념)** | `.cursor/rules/*.mdc` 패턴은 OpenCode의 `AGENTS.md`/`CLAUDE.md`와 동일 철학. 그대로 쓸 수 있음 |
 | **Replit 멀티티어 (prompt+DB+vector+graph)** | **바로 도입 가능 (개념)** | 아키텍처 패턴 자체를 OmO에 적용 가능. 단 각 계층 구현은 로컬 대체품 필요 (Postgres + Chroma/Qdrant + FalkorDB) |
-| **Devin "장기메모리 없음"** | **반면교사** | 장기메모리 없이 가면 onboarding 비용 영구화. OFFCODE는 반드시 장기메모리를 가져야 한다는 근거 |
+| **Devin "장기메모리 없음"** | **반면교사** | 장기메모리 없이 가면 onboarding 비용 영구화. Agentis는 반드시 장기메모리를 가져야 한다는 근거 |
 | **ChatGPT 메모리 붕괴 사례** | **반면교사** | 벤더 락인 금지. **로컬 파일 기반 + git-backed 메모리**가 회복력의 답 (Letta Code의 git-backed 설계와 일치) |
-| **LoCoMo/LongMemEval 벤치마크** | **평가 프레임으로 도입** | OFFCODE Second Brain 구축 후 자체 평가에 LoCoMo 또는 LongMemEval의 축소판을 한국어로 번역/적응하여 회귀 테스트에 쓰는 게 유효 |
+| **LoCoMo/LongMemEval 벤치마크** | **평가 프레임으로 도입** | Agentis Second Brain 구축 후 자체 평가에 LoCoMo 또는 LongMemEval의 축소판을 한국어로 번역/적응하여 회귀 테스트에 쓰는 게 유효 |
 
 ### 최종 권고 (스택 후보)
 

@@ -1,6 +1,6 @@
-# 오드리 (Dr. Oh) - OFFCODE 환경 검사 v2.3
+# 오드리 (Dr. Oh) - Agentis 환경 검사 v2.3
 
-사내 폐쇄망 OFFCODE 환경(vLLM + OpenCode + OmO 플러그인)의 상태를 자동 진단하는 도구입니다.
+사내 폐쇄망 Agentis 환경(vLLM + OpenCode + OmO 플러그인)의 상태를 자동 진단하는 도구입니다.
 
 ## 요구사항
 

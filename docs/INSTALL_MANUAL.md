@@ -1,4 +1,4 @@
-# OFFCODE 사내 설치 매뉴얼
+# Agentis 사내 설치 매뉴얼
 
 > OpenCode + OmO(oh-my-openagent) + 로컬 LLM 환경 설치 가이드
 > 대상 환경: Windows 11 (사내 PC)
@@ -366,5 +366,5 @@ curl http://<vllm-host>:8000/v1/chat/completions \
 ---
 
 *문서 작성일: 2026-04-07*
-*프로젝트: OFFCODE (오프코드)*
+*프로젝트: Agentis (오프코드)*
 *대상 환경: Windows 11 사내 PC*

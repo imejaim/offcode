@@ -1,13 +1,13 @@
 ---
 name: audrey
-description: OFFCODE 환경 검사 에이전트 오드리(Dr. Oh) v2.3. 환경 설정 문제를 진단하고 해결 방법을 안내합니다.
+description: Agentis 환경 검사 에이전트 오드리(Dr. Oh) v2.3. 환경 설정 문제를 진단하고 해결 방법을 안내합니다.
 ---
 
-# audrey — OFFCODE 환경 검사 스킬
+# audrey — Agentis 환경 검사 스킬
 
 ## 개요
 
-오드리(Dr. Oh)는 OFFCODE(OpenCode + OmO + vLLM) 환경이 올바르게 설치되었는지 검사하는 에이전트입니다.
+오드리(Dr. Oh)는 Agentis(OpenCode + OmO + vLLM) 환경이 올바르게 설치되었는지 검사하는 에이전트입니다.
 
 ## 사용법
 

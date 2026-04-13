@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-오드리 (Dr. Oh) - OFFCODE 환경 검사 v2.3
+오드리 (Dr. Oh) - Agentis 환경 검사 v2.3
 
-사내 폐쇄망 OFFCODE 환경(vLLM + OpenCode + OmO)의 상태를 진단합니다.
+사내 폐쇄망 Agentis 환경(vLLM + OpenCode + OmO)의 상태를 진단합니다.
 Python 3.9+ stdlib만 사용하며, pip install 없이 동작합니다.
 
 사용법:
@@ -995,7 +995,7 @@ def run_checks(
 def print_banner() -> None:
     print()
     print("\u2554" + "\u2550" * 48 + "\u2557")
-    print("\u2551  \uc624\ub4dc\ub9ac (Dr. Oh) - OFFCODE \ud658\uacbd \uac80\uc0ac v" + VERSION + "   \u2551")
+    print("\u2551  \uc624\ub4dc\ub9ac (Dr. Oh) - Agentis \ud658\uacbd \uac80\uc0ac v" + VERSION + "   \u2551")
     print("\u255a" + "\u2550" * 48 + "\u255d")
     print()
 
@@ -1057,7 +1057,7 @@ def print_json(results: List[CheckResult]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="\uc624\ub4dc\ub9ac (Dr. Oh) - OFFCODE \ud658\uacbd \uac80\uc0ac v" + VERSION,
+        description="\uc624\ub4dc\ub9ac (Dr. Oh) - Agentis \ud658\uacbd \uac80\uc0ac v" + VERSION,
     )
     parser.add_argument(
         "--json", action="store_true", help="JSON \ud615\uc2dd\uc73c\ub85c \ucd9c\ub825",

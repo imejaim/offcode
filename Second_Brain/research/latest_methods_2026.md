@@ -1,6 +1,6 @@
 # 최신 에이전트 메모리 / 자기참조 아키텍처 서베이 (2025 Q3 – 2026 Q2)
 
-> 작성: OFFCODE Second Brain 서브프로젝트, Researcher L2
+> 작성: Agentis Second Brain 서브프로젝트, Researcher L2
 > 목적: 로컬 LLM(Gemma4 31B/26B/E4B, Ollama) + 폐쇄망 환경에 이식 가능한 최신 에이전트 메모리 패턴 정리
 > 기준 시점: 2026-04
 
@@ -145,7 +145,7 @@
   - **Forms**: token-level / parametric / latent
   - **Functions**: factual / experiential / working
   - **Dynamics**: formation / evolution / retrieval
-- OFFCODE 설계 시 **용어 통일용 레퍼런스**로 사용 권장.
+- Agentis 설계 시 **용어 통일용 레퍼런스**로 사용 권장.
 
 ### 2.12 인지 아키텍처 리바이벌 (Soar / ACT-R + LLM)
 
@@ -184,7 +184,7 @@ Karpathy의 wiki gist는 위 스펙트럼에서 **"극단적으로 단순한 쪽
 
 ---
 
-## 5. OFFCODE 추천 기술 3가지
+## 5. Agentis 추천 기술 3가지
 
 제약: Gemma4 31B/26B/E4B(Ollama) + 폐쇄망 + Windows 사내망/VDI + Docker 및 Postgres는 가능하지만 외부 DB/그래프 서비스는 불가.
 
@@ -211,20 +211,20 @@ Karpathy의 wiki gist는 위 스펙트럼에서 **"극단적으로 단순한 쪽
 - **Mem0**: 훌륭하지만 Graph DB 의존(Neo4j/Neptune) → 폐쇄망 운영 부담
 - **MIRIX**: 6에이전트 풀 + Electron 스택 → Gemma4 E4B 레벨에서 운용 불가
 - **LangGraph/LangMem**: 좋은 옵션이나 framework lock-in. OpenCode/OMO 위에 얹기에는 중복 레이어
-- **CrewAI v0.28**: 멀티에이전트 orchestration 축이 다름, OFFCODE는 OMO가 그 역할
+- **CrewAI v0.28**: 멀티에이전트 orchestration 축이 다름, Agentis는 OMO가 그 역할
 - **Reflexion/MAR**: 메모리 "저장소"라기보단 "추론 패턴". 메인 엔진 위에 optional layer로 얹는 건 가능
 
 ---
 
 ## 부록: 참고 서베이 용어 정리 (Memory in the Age of AI Agents, 2025-12)
 
-추후 OFFCODE 내부 문서에서 용어를 통일할 때 이 taxonomy를 사용한다:
+추후 Agentis 내부 문서에서 용어를 통일할 때 이 taxonomy를 사용한다:
 
 - **Forms**: token-level(인컨텍스트·파일) / parametric(파인튜닝) / latent(hidden state persistence)
 - **Functions**: factual(사실) / experiential(에피소드) / working(단기)
 - **Dynamics**: formation(생성) / evolution(갱신·통합) / retrieval(인출)
 
-OFFCODE 추천 스택의 분류:
+Agentis 추천 스택의 분류:
 - 추천 1(Wiki+Dream) = token-level / factual+experiential / formation+evolution+retrieval 전부 커버
 - 추천 2(Letta) = token-level / factual+experiential / retrieval 중심
 - 추천 3(A-MEM overlay) = token-level / factual / evolution 강화

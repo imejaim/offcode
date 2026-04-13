@@ -147,10 +147,10 @@ CATEGORY_E2E         # **v3 신설 — 핵심**
 ### 3.4 판정 로직 (종합)
 
 기존: FAIL 1개 있으면 `NOT_READY`.
-v3: **"OFFCODE_READY"** 로직:
+v3: **"AGENTIS_READY"** 로직:
 
 ```
-OFFCODE_READY = (
+AGENTIS_READY = (
   살아있는 프로바이더 ≥ 1 AND
   opencode.json 존재 AND
   baseURL 도달 가능 AND
@@ -212,7 +212,7 @@ OFFCODE_READY = (
 - **게이트**: gist #6095074 수준의 응답을 F2가 포착 (실제 Gemma4 31B 응답)
 
 ### Phase 4 — 판정 로직 교체 + 출력 재디자인 (0.5일)
-- [ ] `OFFCODE_READY` 5축 판정 구현
+- [ ] `AGENTIS_READY` 5축 판정 구현
 - [ ] ASCII 진단서에 environment + actual provider + e2e 결과 3개 섹션 추가
 - [ ] JSON 출력 스키마 v3 정식화
 - **게이트**: 오진 재현 시 PASS 나오는지 검증
@@ -273,7 +273,7 @@ Phase 1 시작할 때 L-E2EResearch를 백그라운드로 먼저 dispatch. Phase
 
 ## 9. 수용 기준 (v3.0 done = READY)
 
-1. 현재(2026-04-13) 사내 데스크탑 환경(Ollama Gemma4 31B 시지푸스 동작 중)에서 `python doctor_oh_check.py` 결과가 **OFFCODE_READY = TRUE**.
+1. 현재(2026-04-13) 사내 데스크탑 환경(Ollama Gemma4 31B 시지푸스 동작 중)에서 `python doctor_oh_check.py` 결과가 **AGENTIS_READY = TRUE**.
 2. vLLM을 일부러 내려도(`systemctl stop vllm`) 결과가 유지됨.
 3. baseURL을 localhost로 바꾸면 B5 FAIL + 자동수정 제안이 나옴.
 4. VDI에서 돌렸을 때 FAIL 없이 ENV=vdi + 관련 체크 SKIP으로 떨어짐 (자기 환경을 안다).

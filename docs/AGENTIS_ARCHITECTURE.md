@@ -1,7 +1,28 @@
-# OFFCODE (오프코드) 아키텍처 & 로드맵
+# Agentis 아키텍처 & 로드맵
 
-> **OFFCODE** — 코드를 넘어서. 사내 로컬 LLM 기반 에이전트 빌더 환경.
-> 줄임말: 옵코
+> **Agentis** — 사내 로컬 LLM 기반 에이전트 플랫폼(브랜드).
+> 이전명: Agentis (2026-04-13 리브랜딩)
+
+---
+
+## 0. Agentis 플랫폼 구조
+
+```
+Agentis              ← 전체 플랫폼 (브랜드)
+ ├── Agentium        ← 실행 엔진 (core runtime)
+ ├── AgentMesh       ← 에이전트 네트워크
+ ├── AgentHub        ← UI / dashboard
+ └── AgentSDK        ← 개발용 툴킷
+```
+
+| 컴포넌트 | 역할 | 현재 구현 |
+|----------|------|-----------|
+| **Agentium** | 에이전트 실행 런타임. 프로바이더(Ollama/vLLM/…)→LLM 호출→도구 실행→응답 루프 | OpenCode + OmO(oh-my-openagent) |
+| **AgentMesh** | 에이전트 간 통신·위임·오케스트레이션 네트워크 | OmO 서브에이전트(시지푸스→헤파이스토스 등) |
+| **AgentHub** | UI/대시보드. 에이전트 모니터링, 로그, 작업 큐 | 미구현(장기) |
+| **AgentSDK** | 개발자가 새 에이전트·도구·스킬 만드는 툴킷 | OmO plugin SDK, PydanticAI |
+
+오드리(Dr. Oh)는 **Agentium 헬스체크 에이전트**로 포지셔닝된다.
 
 ---
 
@@ -9,7 +30,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  OFFCODE — 에이전트 빌더 (Layer 1: 만드는 도구)       │
+│  Agentis — 에이전트 빌더 (Layer 1: 만드는 도구)       │
 │                                                      │
 │  OpenCode + OmO (oh-my-opencode)                     │
 │  하네스 구조: 도구 실행, MCP, CLI, 훅, 서브에이전트     │
@@ -54,8 +75,8 @@
 ### 이미 만든 에이전트
 | 에이전트 | 이름 | 역할 | 동작 환경 |
 |---|---|---|---|
-| **뀨리 (GGuri)** | 문서자동화 에이전트 | 자료 수집 → 문서 작성 → 메일 발송 | OFFCODE 하네스 (CLI) |
-| **오드리 (Dr. Oh)** | 환경검사 에이전트 | OFFCODE 환경 구축 상태 점검 | OFFCODE 하네스 (CLI) |
+| **뀨리 (GGuri)** | 문서자동화 에이전트 | 자료 수집 → 문서 작성 → 메일 발송 | Agentis 하네스 (CLI) |
+| **오드리 (Dr. Oh)** | 환경검사 에이전트 | Agentis 환경 구축 상태 점검 | Agentis 하네스 (CLI) |
 
 ### 향후 만들 에이전트 (예정)
 | 에이전트 | 역할 | 예상 런타임 |
@@ -63,7 +84,7 @@
 | 사내 전문지식 Q&A | RAG 기반 사내 문서 검색 + 답변 | PydanticAI + 벡터DB |
 | 일일/주간 보고서 자동화 | 다중 소스 수집 → 보고서 생성 | PydanticAI 또는 하네스 |
 | 회의록 정리 | 회의 메모 → 요약 + 액션아이템 | PydanticAI (단일 에이전트) |
-| 코드 리뷰/PR 자동 검토 | PR 자동 리뷰 + 보안 체크 | OFFCODE 하네스 (코딩 에이전트) |
+| 코드 리뷰/PR 자동 검토 | PR 자동 리뷰 + 보안 체크 | Agentis 하네스 (코딩 에이전트) |
 | 온보딩 도우미 | 신입사원 질문 응답, 사내 규정 안내 | PydanticAI + RAG |
 | 이상 감지/알림 | 시스템 모니터링 → 이상 탐지 → 알림 | PydanticAI + 스케줄러 |
 
@@ -94,7 +115,7 @@
 | ⚙️ Medium | `gemma4:26b` | 헤파이스토스, 아틀라스, 멀티모달 | artistry, writing, visual, high |
 | ⚡ Light | `gemma4:e4b` | 오라클, 라이브러리안, 익스플로어 | quick, low |
 
-### Phase 1: OFFCODE 환경 구축
+### Phase 1: Agentis 환경 구축
 ```
 배포 패키지 (zip/폴더)
 ├── opencode-dev/          # OpenCode 소스
@@ -103,7 +124,7 @@
 └── README.md              # 설치 가이드
 ```
 - 배포 패키지를 사내 공유 → 대상 환경에 복사
-- OFFCODE 환경 설치 (OpenCode + OmO)
+- Agentis 환경 설치 (OpenCode + OmO)
 - 로컬 LLM 엔드포인트 연결 설정
 
 ### Phase 2: 의존성 해결 (하네스적 접근)
@@ -143,7 +164,7 @@
 **추천 순서:**
 ```
 Phase 0 (vLLM 확인)
-    ├── Phase 1~2 (OFFCODE 구축)     ← 병렬 진행 가능
+    ├── Phase 1~2 (Agentis 구축)     ← 병렬 진행 가능
     └── Phase 3.5 (PydanticAI PoC)   ← 병렬 진행 가능
          │
 Phase 3 (뀨리 v1.0 동작 확인)
@@ -233,20 +254,20 @@ Phase 4~5:  단일 바이너리 배포 (의존성 제거)
 | 레이어 | 기술 | 역할 |
 |---|---|---|
 | LLM 서빙 | Ollama (메인) / vLLM (백업) | Gemma4 31B/26B/E4B 서빙, OpenAI 호환 API |
-| 코딩 에이전트 하네스 | OpenCode + OmO | 에이전트 빌더 (OFFCODE) |
+| 코딩 에이전트 하네스 | OpenCode + OmO | 에이전트 빌더 (Agentis) |
 | 업무 에이전트 런타임 | PydanticAI | 타입 안전 에이전트 실행 (Python) |
 | 복잡 워크플로우 | LangGraph | 멀티스텝 상태머신 (필요시에만) |
 | 도구 연결 | MCP 서버 | 메일, DB, 파일 등 표준 도구 연결 |
 | 벡터DB | pgvector / Qdrant | 사내 지식 임베딩 저장 |
 | 문서 처리 | Qwen-VL / Unstructured.io | 비정형 엑셀/PDF 멀티모달 처리 |
 | 검색 | 하이브리드 (BM25+벡터) + 리랭킹 | 프로덕션급 검색 품질 |
-| 환경 검사 | 오드리 (Dr. Oh) | OFFCODE 환경 자동 점검 |
+| 환경 검사 | 오드리 (Dr. Oh) | Agentis 환경 자동 점검 |
 
 ---
 
 ## 6. 핵심 원칙
 
-1. **OFFCODE는 만드는 도구, 만들어진 에이전트는 별도 런타임** — 하네스로 만들되, 돌아가는 건 PydanticAI/API 서버
+1. **Agentis는 만드는 도구, 만들어진 에이전트는 별도 런타임** — 하네스로 만들되, 돌아가는 건 PydanticAI/API 서버
 2. **단순 RAG 금지** — 반드시 LLM 문맥 강화 + 하이브리드 검색 + 리랭킹 적용
 3. **단계적 배포** — zip → 바이너리 → 컨테이너 순으로 성숙
 4. **사용자 주도 진화** — 초기 환경과 첫 에이전트를 제공하면, 이후는 사용자가 발전시킴
@@ -256,4 +277,4 @@ Phase 4~5:  단일 바이너리 배포 (의존성 제거)
 
 *문서 작성일: 2026-04-07*
 *최종 업데이트: 2026-04-13 (Gemma4/Ollama 전환 반영)*
-*프로젝트: OFFCODE (오프코드)*
+*프로젝트: Agentis (오프코드)*
