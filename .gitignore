@@ -10,3 +10,7 @@ oh-my-openagent-dev/
 
 # Python cache
 __pycache__/
+
+# Build artifacts (exe ships via GitHub Releases, not git)
+agentis/dist/**/*.exe
+agentis/dist/**/*.tar.gz
