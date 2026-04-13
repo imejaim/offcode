@@ -1,0 +1,21 @@
+{
+  "_note": "R3 — 구 Qwen/vLLM 스타일 설정. provider=localvllm, baseURL은 vLLM:8000을 가리키나 실제로 vLLM은 죽어 있고 Ollama가 살아있는 환경에서 돌리면 B4 WARN + B5 FAIL + C7 WARN이 나와야 한다.",
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "localvllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Local vLLM (legacy)",
+      "options": {
+        "baseURL": "http://10.88.22.29:8000/v1"
+      },
+      "models": {
+        "Qwen3.5-35B-A3B": {
+          "name": "Qwen3.5 35B A3B"
+        }
+      }
+    }
+  },
+  "plugin": [
+    "file:///C:/Users/dongho.yoon/project/999_offcode/oh-my-openagent-dev/dist/index.js"
+  ]
+}

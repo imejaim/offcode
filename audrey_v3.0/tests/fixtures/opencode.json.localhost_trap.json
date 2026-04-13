@@ -1,0 +1,21 @@
+{
+  "_note": "R2 — 실제 버그 재현용. baseURL이 localhost로 잘못 박혀 있음. B5는 FAIL + autofix 제안이 나와야 한다.",
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (BROKEN localhost)",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      },
+      "models": {
+        "gemma4:31b": {
+          "name": "Gemma4 31B"
+        }
+      }
+    }
+  },
+  "plugin": [
+    "file:///C:/Users/dongho.yoon/project/999_offcode/oh-my-openagent-dev/dist/index.js"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "_note": "Gemma4 3티어 배분 픽스처. 본래 JSONC지만 주석 없는 순수 JSON으로 저장 (C3 JSONC 파서 테스트는 Builder가 실제 .jsonc 파일을 별도로 만들 것). sisyphus=31B, 서브에이전트=26B, 경량=e4b.",
+  "agents": {
+    "sisyphus": {
+      "model": "ollama/gemma4:31b",
+      "disabled": false,
+      "description": "무한 루프 실행자"
+    },
+    "hephaestus": {
+      "model": "ollama/gemma4:26b",
+      "disabled": false,
+      "description": "장인"
+    },
+    "oracle": {
+      "model": "ollama/gemma4:26b",
+      "disabled": false,
+      "description": "판정자"
+    },
+    "prometheus": {
+      "model": "ollama/gemma4:26b",
+      "disabled": false,
+      "description": "계획자"
+    },
+    "scout": {
+      "model": "ollama/gemma4:e4b",
+      "disabled": false,
+      "description": "정찰병(경량)"
+    }
+  },
+  "tools": {
+    "enabled": ["read", "write", "edit", "bash"]
+  }
+}

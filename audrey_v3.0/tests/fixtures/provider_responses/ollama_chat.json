@@ -1,0 +1,22 @@
+{
+  "_note": "Ollama OpenAI 호환 /v1/chat/completions 응답 샘플. A3/F2 체크가 이 JSON을 파싱해서 choices[0].message.content를 추출할 수 있어야 한다. F2는 detail에 'Gemma4' 또는 '31b' 문자열을 기록한다.",
+  "id": "chatcmpl-ollama-fixture-0001",
+  "object": "chat.completion",
+  "created": 1744531260,
+  "model": "gemma4:31b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "pong — Gemma4 31B 시지푸스 정상 응답입니다."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 3,
+    "completion_tokens": 12,
+    "total_tokens": 15
+  }
+}

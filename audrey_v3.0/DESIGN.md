@@ -92,7 +92,11 @@ def discover_providers(providers: list[Provider], timeout: float = 3.0) -> list[
 
 
 def pick_actual_provider(statuses: list[ProviderStatus]) -> Optional[ProviderStatus]:
-    """alive=True 중 priority 오름차순으로 첫 번째 선택."""
+    """alive=True 중 priority 오름차순 → 동점 시 name 사전순으로 첫 번째 선택.
+
+    Tie-breaker 확정(2026-04-13, Tester 제안): priority 같으면 name 알파벳 정렬.
+    R4 회귀 시나리오에서 이 규칙을 검증.
+    """
     ...
 ```
 
@@ -367,6 +371,20 @@ __main__.py
   ├── autofix.apply()          (autofix.py, --auto-fix 시)
   └── report.emit()            (report.py)
 ```
+
+---
+
+## 9.1 계약 확장 (2026-04-13 통합 후)
+
+Builder/Scout/Tester 3레인 통합 과정에서 확정된 추가 계약:
+
+- **CheckContext 파일 위치**: `src/context.py` (DESIGN §5 원안은 파일 미지정). `run_command()` 공용 헬퍼도 여기 배치 → `checks/*`에서 `from ..context import CheckContext, run_command`로 참조.
+- **Config 파서 `_note` 키 관대**: 테스트 픽스처에 용도 주석용 `_note` 키가 들어간다. `load_config()`는 알 수 없는 최상위 키를 **조용히 무시**해야 한다. strict 파싱 시 모든 픽스처가 깨진다.
+- **B5 localhost 판정 규칙**: localhost baseURL이라도 실제로 응답하면 PASS. FAIL 조건은 "baseURL이 localhost **이면서** 응답 없음 **이면서** alive한 비-localhost 프로바이더 존재". 블랙웰 서버에서는 localhost가 정답이므로 이 조건이 필수.
+- **E2E 전략 우선순위**: `opencode run --format json` NDJSON → `opencode serve` HTTP API → `opencode --headless`. Scout 정적 분석 결과 기반. `_resolve_bin()` 헬퍼로 Windows `.cmd` 래퍼 대응 필수.
+- **F3 서브에이전트 사전 검증**: `opencode run`은 없는 에이전트도 exit 0으로 fallback 진행. F3는 호출 전 `opencode agent list` 또는 `opencode debug agent <name>`으로 존재 확인 권장.
+- **F4 `ctx._e2e_latencies`**: F1/F2/F3가 먼저 돌아야 값이 채워진다. 카테고리 실행 순서는 `env → infra → opencode → omo → logs → model → e2e`로 고정.
+- **`python -m audrey_v3.0` 금지**: 디렉터리명에 `.`이 들어가 패키지명으로 쓸 수 없음. `scripts/audrey3.sh` 및 `scripts/audrey3.bat` 래퍼로 `python -m src --config ...` 를 감싼다.
 
 ---
 

@@ -87,8 +87,12 @@ def discover_providers(providers: list, timeout: float = 3.0) -> list:
 
 
 def pick_actual_provider(statuses: list) -> Optional[ProviderStatus]:
+    """Pick alive provider: priority ascending, tie-broken by name alphabetically.
+
+    Tie-breaker locked in DESIGN §9.1 (2026-04-13) so R4 regression is deterministic.
+    """
     alive = [s for s in statuses if s.alive]
     if not alive:
         return None
-    alive.sort(key=lambda s: s.provider.priority)
+    alive.sort(key=lambda s: (s.provider.priority, s.provider.name))
     return alive[0]

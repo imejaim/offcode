@@ -1,0 +1,24 @@
+{
+  "_note": "Ollama OpenAI 호환 /v1/models 응답 샘플. A2/E1 체크가 이 JSON을 파싱하여 served_models 리스트를 추출할 수 있어야 한다.",
+  "object": "list",
+  "data": [
+    {
+      "id": "gemma4:31b",
+      "object": "model",
+      "created": 1744531200,
+      "owned_by": "library"
+    },
+    {
+      "id": "gemma4:26b",
+      "object": "model",
+      "created": 1744531200,
+      "owned_by": "library"
+    },
+    {
+      "id": "gemma4:e4b",
+      "object": "model",
+      "created": 1744531200,
+      "owned_by": "library"
+    }
+  ]
+}

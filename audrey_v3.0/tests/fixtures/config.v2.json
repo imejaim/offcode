@@ -1,0 +1,7 @@
+{
+  "_note": "R1 — v2.31 config.json 그대로. schema_version 없음 + vllm_url 키 존재 → config.load_config가 v2로 감지하고 migrate_v2_to_v3()를 내부 호출해야 한다. 디스크 쓰기 없음.",
+  "vllm_url": "http://10.88.22.29:8000",
+  "vllm_model": "Qwen3.5-35B-A3B",
+  "opencode_config_dir": "~/.config/opencode",
+  "expected_plugin": "oh-my-openagent"
+}
