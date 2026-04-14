@@ -2,19 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 세션 시작 시
+## 세션 시작 시 (Holonomic Brain 부트스트랩)
 
-- `docs/CONSTRAINTS.md`를 **반드시** 읽고, 안 되는 방법을 제안하지 않는다
-- `docs/AGENTIS_ARCHITECTURE.md`로 전체 그림 파악, `docs/INSTALL_MANUAL.md`로 환경 절차 확인
-- 과거 작업 계획은 `_archive/WORKPLAN_Agentis_PHASE1.md` 참고 (완료)
-- "정리해" 또는 "기록해" → `cleanup` 스킬 실행 (히스토리 기록, 아카이브, git 관리, 문서 통합)
+1. **`Holonomic_Brain/knowledge/wiki/00_index.md`** 먼저 읽는다. 이전 세션의 결정·마일스톤은 전부 여기에 있다. 재설명 요구 금지.
+2. 관련 카테고리 wiki로 진입 (`04_sisyphus_milestones.md`, `05_audrey_v31.md`, `09_constraints_blackwell.md` 등).
+3. `docs/CONSTRAINTS.md`를 **반드시** 참조. 안 되는 방법 제안 금지.
+4. 새 결정·마일스톤·교훈이 발생하면 **해당 wiki를 갱신하고 `Holonomic_Brain/knowledge/log.md`에 1줄 기록**한 뒤 세션을 마친다.
+5. "정리해" 또는 "기록해" → `cleanup` 스킬 실행.
+
+자세한 규약은 [`Holonomic_Brain/knowledge/wiki/11_agent_evolution_protocol.md`](Holonomic_Brain/knowledge/wiki/11_agent_evolution_protocol.md) 참조.
 
 ## 문서 구조
 
-- `docs/AGENTIS_ARCHITECTURE.md` — 3레이어 아키텍처, 에이전트 로드맵, 배포 방식
-- `docs/CONSTRAINTS.md` — 블랙웰 서버 제약사항 (되는 것/안 되는 것)
+- `Holonomic_Brain/` — **프로젝트 단일 진실 저장소 (Karpathy LLM Wiki 패턴)**
+  - `knowledge/wiki/00_index.md` — 11 wiki 문서 인덱스
+  - `knowledge/visual/brain_graph.html` — vis-network 인터랙티브 그래프
+  - `knowledge/log.md` — 변경 이력
+- `docs/AGENTIS_ARCHITECTURE.md` — 플랫폼 아키텍처 원본 (wiki 01로 컴파일됨)
+- `docs/CONSTRAINTS.md` — 블랙웰 서버 제약사항 (wiki 09로 거울)
 - `docs/INSTALL_MANUAL.md` — Agentis 환경 설치 매뉴얼
-- `audrey/` — 오드리(Dr. Oh) 환경검사 에이전트 v2.31
+- `audrey_v3.0/` — 오드리(Dr. Oh) v3.1 Agentium 헬스체크
+- `audrey/` — v2.31 레거시(후방 호환)
+- `Second_Brain/` — 리서치 페이즈 원전(Holonomic Brain의 씨앗)
 - `_archive/` — 완료된 작업 계획, gist 댓글 아카이브
 
 ## Gist 소통 채널

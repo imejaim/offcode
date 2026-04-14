@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>Holonomic Brain — Knowledge Graph</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- vis-network via CDN. 오프라인 환경에서는 이 src를 로컬 복사본으로 교체하라. -->
+  <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #0e0e13; color: #e8e8ee; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif; }
+    header { padding: 12px 20px; border-bottom: 1px solid #2a2a36; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+    header h1 { font-size: 18px; font-weight: 600; margin: 0; letter-spacing: 0.3px; }
+    header .sub { font-size: 12px; color: #9c9cb0; }
+    header .legend { display: flex; gap: 12px; font-size: 11px; margin-left: auto; flex-wrap: wrap; }
+    header .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    header .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    #graph { width: 100vw; height: calc(100vh - 120px); }
+    footer { padding: 8px 20px; border-top: 1px solid #2a2a36; font-size: 11px; color: #9c9cb0; }
+    footer a { color: #7cb1ff; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    #detail { position: fixed; right: 20px; top: 90px; width: 320px; max-height: calc(100vh - 160px); overflow-y: auto; background: #1a1a24; border: 1px solid #2a2a36; padding: 14px 16px; border-radius: 8px; font-size: 13px; line-height: 1.55; display: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+    #detail h2 { margin: 0 0 6px 0; font-size: 15px; color: #ffd77a; }
+    #detail .meta { font-size: 11px; color: #9c9cb0; margin-bottom: 10px; }
+    #detail .links { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #2a2a36; }
+    #detail .links a { display: block; color: #7cb1ff; text-decoration: none; font-size: 12px; padding: 3px 0; }
+    #detail .close { position: absolute; top: 10px; right: 12px; cursor: pointer; color: #777; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧠 Holonomic Brain — Agentis Knowledge Graph</h1>
+    <span class="sub">Karpathy LLM Wiki 패턴 · 2026-04-14</span>
+    <div class="legend">
+      <span><i style="background:#ffd77a"></i>플랫폼</span>
+      <span><i style="background:#7cb1ff"></i>환경/인프라</span>
+      <span><i style="background:#8ae5a3"></i>건강/모니터링</span>
+      <span><i style="background:#ff9e9e"></i>기억·리서치</span>
+      <span><i style="background:#c7a6ff"></i>프로토콜/자기참조</span>
+    </div>
+  </header>
+  <div id="graph"></div>
+  <div id="detail">
+    <span class="close" onclick="document.getElementById('detail').style.display='none'">×</span>
+    <h2 id="detail-title"></h2>
+    <div class="meta" id="detail-meta"></div>
+    <div id="detail-body"></div>
+    <div class="links" id="detail-links"></div>
+  </div>
+  <footer>
+    노드 클릭 = 상세 보기 · 드래그 = 재배치 · 휠 = 줌 · <a href="../wiki/00_index.md">wiki/00_index.md</a> · <a href="../log.md">log.md</a>
+  </footer>
+
+  <script>
+    // ───────────────────────────── Nodes ─────────────────────────────
+    const WIKI_DIR = "../wiki/";
+    const nodes = new vis.DataSet([
+      {
+        id: "01_platform", label: "01. Agentis\n플랫폼",
+        group: "platform",
+        title: "4서브브랜드 + 3레이어 아키텍처",
+        wiki: "01_agentis_platform.md",
+        detail: "Agentis 플랫폼 — Agentium(runtime) / AgentMesh(network) / AgentHub(UI) / AgentSDK(toolkit) 4 서브브랜드. 3레이어: 빌더 → 런타임 → 지식."
+      },
+      {
+        id: "02_env", label: "02. 환경\n토폴로지",
+        group: "infra",
+        title: "VDI / 데스크탑 / 노트북 / 블랙웰",
+        wiki: "02_environments.md",
+        detail: "4환경. VDI(10.44.33.205) · 데스크탑(10.88.21.220) · 노트북(10.88.22.208) · 블랙웰(10.88.22.29). VDI→블랙웰 Ollama 원격 접근 가능 확인(2026-04-13)."
+      },
+      {
+        id: "03_gemma4", label: "03. Gemma4\nOllama 서빙",
+        group: "infra",
+        title: "3티어 배분 + vLLM 백업",
+        wiki: "03_gemma4_ollama.md",
+        detail: "Ollama 0.20.4 메인, Gemma4 31B/26B/E4B 3티어. vLLM은 31B chat_template 문제로 백업."
+      },
+      {
+        id: "04_sisyphus", label: "04. 시지푸스\n마일스톤",
+        group: "health",
+        title: "블랙웰 2026-04-10 / 데스크탑 2026-04-13",
+        wiki: "04_sisyphus_milestones.md",
+        detail: "블랙웰 첫 응답 2026-04-10 16:33(34.2s). 데스크탑 원격 응답 2026-04-13 04:20. baseURL 함정 사건 기록."
+      },
+      {
+        id: "05_audrey", label: "05. 오드리\nv3.1",
+        group: "health",
+        title: "Agentium 헬스체크 · AGENTIS_READY 5축",
+        wiki: "05_audrey_v31.md",
+        detail: "프로바이더 중립 + E2E 우선 + 환경 자각. 7 카테고리 × ~25 체크. 2026-04-13 블랙웰 F2 18.1s PASS."
+      },
+      {
+        id: "06_karpathy", label: "06. Karpathy\nLLM Wiki",
+        group: "memory",
+        title: "3레이어 × 3연산 × 2특수파일",
+        wiki: "06_karpathy_wiki_pattern.md",
+        detail: "원전 분석. 메모리=markdown+git. self-reference=wiki 읽기. reflection=lint. 임베딩 DB 불필요."
+      },
+      {
+        id: "07_convergence", label: "07. 2025-2026\n메모리 수렴선",
+        group: "memory",
+        title: "Letta / A-MEM / Mem0 / MIRIX / Claude Auto Dream",
+        wiki: "07_memory_convergence_2026.md",
+        detail: "업계 흐름 4 방향 + 제품 3층 구조 수렴. Karpathy Wiki = 극미니멀 끝 = Agentis 최적."
+      },
+      {
+        id: "08_cases", label: "08. 실제\n적용 사례",
+        group: "memory",
+        title: "Claude Code 4레이어 · 운영 교훈",
+        wiki: "08_production_cases.md",
+        detail: "Claude Code 4레이어(CLAUDE.md+Auto Memory+Session+Auto Dream)가 최적 레퍼런스. Graphiti 보조. 벤더 락인 금지."
+      },
+      {
+        id: "09_constraints", label: "09. 블랙웰\n제약사항",
+        group: "infra",
+        title: "되는 것 / 안 되는 것",
+        wiki: "09_constraints_blackwell.md",
+        detail: "hf download ❌ / wget ✅. npm 플러그인 로딩 ❌ / file:// ✅. vLLM 31B chat_template ❌ / Ollama 31B ✅."
+      },
+      {
+        id: "10_self", label: "10. Holonomic\nBrain 자기참조",
+        group: "protocol",
+        title: "본 시스템이 본 시스템을 설명",
+        wiki: "10_holonomic_brain_itself.md",
+        detail: "Karpathy 3레이어 → Holonomic Brain 매핑. 유지보수 규칙 6종. 개인 메모리(Claude Auto)와 분리 원칙."
+      },
+      {
+        id: "11_evolution", label: "11. Agent\nEvolution\nProtocol",
+        group: "protocol",
+        title: "새 세션 부트스트랩 5단계",
+        wiki: "11_agent_evolution_protocol.md",
+        detail: "Task 3. 환경 자각 → 플랫폼 맥락 → 카테고리 진입 → 그래프 확인 → 작업+기록."
+      }
+    ]);
+
+    // ───────────────────────────── Edges ─────────────────────────────
+    const edges = new vis.DataSet([
+      { from: "01_platform", to: "02_env",       label: "deployed on",  arrows: "to" },
+      { from: "01_platform", to: "03_gemma4",    label: "runtime",       arrows: "to" },
+      { from: "01_platform", to: "05_audrey",    label: "diagnosed by",  arrows: "to" },
+      { from: "02_env",      to: "04_sisyphus",  label: "validated in",  arrows: "to" },
+      { from: "03_gemma4",   to: "04_sisyphus",  label: "powers",        arrows: "to" },
+      { from: "09_constraints", to: "03_gemma4", label: "constrains",    arrows: "to" },
+      { from: "09_constraints", to: "05_audrey", label: "constrains",    arrows: "to" },
+      { from: "04_sisyphus", to: "05_audrey",    label: "triggers R2",   arrows: "to", dashes: true },
+      { from: "05_audrey",   to: "02_env",       label: "env-aware",     arrows: "to", dashes: true },
+      { from: "06_karpathy", to: "10_self",      label: "pattern for",   arrows: "to", color: { color: "#ff9e9e" } },
+      { from: "07_convergence", to: "10_self",   label: "choice of",     arrows: "to", color: { color: "#ff9e9e" } },
+      { from: "08_cases",    to: "10_self",      label: "discipline from", arrows: "to", color: { color: "#ff9e9e" } },
+      { from: "06_karpathy", to: "07_convergence", label: "positioned",  arrows: "to", dashes: true },
+      { from: "07_convergence", to: "08_cases",  label: "deployed as",   arrows: "to", dashes: true },
+      { from: "10_self",     to: "11_evolution", label: "enforces",      arrows: "to" },
+      { from: "11_evolution", to: "01_platform", label: "bootstraps",    arrows: "to", dashes: true },
+      { from: "11_evolution", to: "02_env",      label: "step 1",        arrows: "to", dashes: true },
+      { from: "11_evolution", to: "05_audrey",   label: "mirrors check", arrows: "to", dashes: true },
+      { from: "05_audrey",   to: "03_gemma4",    label: "A1~A4 probe",   arrows: "to", dashes: true }
+    ]);
+
+    // ───────────────────────────── Options ─────────────────────────────
+    const options = {
+      nodes: {
+        shape: "box",
+        margin: 14,
+        widthConstraint: { minimum: 110, maximum: 170 },
+        font: { color: "#0e0e13", size: 14, face: "Segoe UI, Malgun Gothic, sans-serif", multi: true, bold: { color: "#0e0e13" } },
+        borderWidth: 2,
+        shadow: { enabled: true, color: "rgba(0,0,0,0.3)", size: 8, x: 2, y: 2 }
+      },
+      edges: {
+        arrows: { to: { enabled: true, scaleFactor: 0.7 } },
+        color: { color: "#555569", highlight: "#ffd77a", hover: "#ffd77a" },
+        font: { color: "#9c9cb0", size: 10, strokeWidth: 0, align: "middle" },
+        smooth: { type: "continuous" },
+        width: 1.5
+      },
+      groups: {
+        platform: { color: { background: "#ffd77a", border: "#c9a04c", hover: "#ffe19a", highlight: "#ffe19a" } },
+        infra:    { color: { background: "#7cb1ff", border: "#4f87cc", hover: "#9cc2ff", highlight: "#9cc2ff" } },
+        health:   { color: { background: "#8ae5a3", border: "#55ae70", hover: "#a5edb8", highlight: "#a5edb8" } },
+        memory:   { color: { background: "#ff9e9e", border: "#c96b6b", hover: "#ffb5b5", highlight: "#ffb5b5" } },
+        protocol: { color: { background: "#c7a6ff", border: "#8f6dcc", hover: "#d8bfff", highlight: "#d8bfff" } }
+      },
+      physics: {
+        enabled: true,
+        solver: "forceAtlas2Based",
+        forceAtlas2Based: { gravitationalConstant: -55, springLength: 140, springConstant: 0.08, damping: 0.6 },
+        stabilization: { iterations: 300 }
+      },
+      interaction: { hover: true, tooltipDelay: 150, zoomView: true, dragView: true, navigationButtons: false, keyboard: true }
+    };
+
+    const container = document.getElementById("graph");
+    const network = new vis.Network(container, { nodes, edges }, options);
+
+    // ───────────────────────────── Detail panel ─────────────────────────────
+    network.on("click", function(params) {
+      if (params.nodes && params.nodes.length > 0) {
+        const node = nodes.get(params.nodes[0]);
+        document.getElementById("detail-title").textContent = node.label.replace(/\n/g, " ");
+        document.getElementById("detail-meta").textContent = node.title || "";
+        document.getElementById("detail-body").textContent = node.detail || "";
+
+        // Links: connected edges → related wiki files
+        const connected = network.getConnectedNodes(node.id);
+        const linksDiv = document.getElementById("detail-links");
+        linksDiv.innerHTML = "<strong>원본 / 관련:</strong><br>" +
+          `<a href="${WIKI_DIR}${node.wiki}" target="_blank">📄 ${node.wiki}</a>` +
+          connected.map(cid => {
+            const c = nodes.get(cid);
+            return c ? `<a href="${WIKI_DIR}${c.wiki}" target="_blank">↳ ${c.label.replace(/\n/g, " ")}</a>` : "";
+          }).join("");
+
+        document.getElementById("detail").style.display = "block";
+      } else {
+        document.getElementById("detail").style.display = "none";
+      }
+    });
+
+    // Stop physics once stable for crisp layout
+    network.once("stabilizationIterationsDone", function() {
+      network.setOptions({ physics: { enabled: false } });
+    });
+  </script>
+</body>
+</html>
